@@ -3,6 +3,7 @@ from flask import Flask, redirect, render_template, request, url_for, jsonify
 from db import init_db
 from services import (
     complete_activity,
+    create_customer,
     list_dashboard_data,
     load_all_recipe_data,
     mark_order_delivered,
@@ -50,14 +51,35 @@ def setup_data():
 def create_order():
     try:
         customer_id = int(request.form["customer_id"])
-        cafeteria = request.form["cafeteria"]
+        place = request.form["place"]
         prod_id = int(request.form["prod_id"])
         quantity = float(request.form["quantity"])
-        result = place_order(customer_id, cafeteria, [{"prod_id": prod_id, "quantity": quantity}])
+        delivery_date = request.form.get("delivery_date")
+        delivery_window = request.form.get("delivery_window", "morning")
+        result = place_order(
+            customer_id,
+            place,
+            [{"prod_id": prod_id, "quantity": quantity}],
+            delivery_date=delivery_date,
+            delivery_window=delivery_window,
+        )
         message = f"Order #{result['order_id']} created"
         if result["warnings"]:
             message += " | " + " | ".join(result["warnings"])
         return redirect(url_for("index", message=message))
+    except Exception as exc:
+        return redirect(url_for("index", error=str(exc)))
+
+
+@app.post("/customers")
+def add_customer():
+    try:
+        customer_id = create_customer(
+            request.form.get("name", ""),
+            phone=request.form.get("phone", ""),
+            email=request.form.get("email", ""),
+        )
+        return redirect(url_for("index", message=f"Customer #{customer_id} added"))
     except Exception as exc:
         return redirect(url_for("index", error=str(exc)))
 

@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS Orders (
     Cafeteria TEXT NOT NULL CHECK(Cafeteria IN ('kafe_1', 'kafe_2')),
     Date TEXT NOT NULL,
     Delivery_date TEXT,
+    Delivery_window TEXT NOT NULL DEFAULT 'morning' CHECK(Delivery_window IN ('morning', 'noon')),
     Status TEXT NOT NULL DEFAULT 'pending' CHECK(Status IN ('pending', 'produced', 'delivered')),
     Content TEXT NOT NULL,
     Warning TEXT,

@@ -12,6 +12,10 @@ def _today():
     return date.today().isoformat()
 
 
+def _normalize_delivery_window(delivery_window):
+    return delivery_window if delivery_window in {"morning", "noon"} else "morning"
+
+
 def _refresh_order_status(order_id):
     if order_id is None:
         return
@@ -255,9 +259,11 @@ def _names_for_missing(prep_missing, raw_missing):
     return warnings
 
 
-def place_order(customer_id, cafeteria, items):
+def place_order(customer_id, place, items, delivery_date=None, delivery_window="morning"):
     prep_stock = _aggregate_prep_stock()
     raw_stock = _aggregate_raw_stock()
+    delivery_date = delivery_date or _today()
+    delivery_window = _normalize_delivery_window(delivery_window)
 
     total_prep_req = {}
     total_raw_req = {}
@@ -287,8 +293,8 @@ def place_order(customer_id, cafeteria, items):
         warnings.append(f"Purchase order #{purchase_id} created for missing raw products")
 
     order_id = execute(
-        "INSERT INTO Orders (Customer_id, Cafeteria, Date, Delivery_date, Status, Content, Warning) VALUES (?, ?, ?, ?, 'pending', ?, ?)",
-        (customer_id, cafeteria, _today(), _today(), json.dumps(items), " | ".join(warnings)),
+        "INSERT INTO Orders (Customer_id, Cafeteria, Date, Delivery_date, Delivery_window, Status, Content, Warning) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)",
+        (customer_id, place, _today(), delivery_date, delivery_window, json.dumps(items), " | ".join(warnings)),
     )
 
     for prep_id, qty in planned_prep_qty.items():
@@ -414,6 +420,18 @@ def mark_order_delivered(order_id):
     )
 
 
+def create_customer(name, phone="", email=""):
+    name = (name or "").strip()
+    phone = (phone or "").strip()
+    email = (email or "").strip()
+    if not name:
+        raise ValueError("Customer name is required")
+    return execute(
+        "INSERT INTO Customers (Phone, Name, Email) VALUES (?, ?, ?)",
+        (phone, name, email),
+    )
+
+
 def list_dashboard_data():
     products = fetch_all("SELECT * FROM Products ORDER BY Prod_name")
     preps = fetch_all("SELECT * FROM Preps ORDER BY Prep_name")
@@ -428,10 +446,13 @@ def list_dashboard_data():
     )
     activities = fetch_all("""
         SELECT a.*, 
-               COALESCE(pr.Prod_name, p.Prep_name) as item_name
+               COALESCE(pr.Prod_name, p.Prep_name) as item_name,
+               o.Delivery_date as order_delivery_date,
+               o.Delivery_window as order_delivery_window
         FROM Activity a
         LEFT JOIN Products pr ON a.Product_type = 'prod' AND a.Product_id = pr.Prod_id
         LEFT JOIN Preps p ON a.Product_type = 'prep' AND a.Product_id = p.Prep_id
+        LEFT JOIN Orders o ON o.ID = a.Order_id
         ORDER BY a.Date DESC, a.ID DESC LIMIT 50
     """)
     prep_batches = fetch_all(
@@ -472,6 +493,7 @@ def list_dashboard_data():
                     "ID": row["ID"],
                     "Date": row["Date"],
                     "Delivery_date": row["Delivery_date"] or row["Date"],
+                    "Delivery_window": row["Delivery_window"] or "morning",
                     "Status": row["Status"] or "pending",
                     "delivery_place": delivery_place,
                     "customer_name": customer_name,
@@ -529,6 +551,7 @@ def list_dashboard_data():
         "raw_purchases": raw_purchases,
         "product_purchases": product_purchases,
         "customers": customers,
+        "today": _today(),
         "workers": workers,
         "raw_products": raw_products,
     }

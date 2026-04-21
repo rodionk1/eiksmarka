@@ -276,6 +276,49 @@ td {
     margin-bottom: 0;
 }
 
+.order-create-form {
+    margin-bottom: 1rem;
+}
+
+.order-form-grid {
+    display: grid;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1rem;
+}
+
+.order-form-grid-top {
+    grid-template-columns: 1fr 1.4fr auto;
+}
+
+.order-form-grid-bottom {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+}
+
+.inline-action-slot {
+    display: flex;
+    align-items: end;
+    min-height: 100%;
+}
+
+.inline-action-slot button {
+    width: 100%;
+}
+
+.inline-customer-panel {
+    padding: 1rem;
+    border: 1px solid #ebf1e9;
+    border-radius: 8px;
+    background: #f8fbf7;
+}
+
+.inline-customer-form {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.2fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+
 .qty-with-unit {
     display: flex;
     align-items: center;
@@ -455,6 +498,16 @@ td {
 
     .inline-prep-row {
         grid-template-columns: 1fr;
+    }
+
+    .order-form-grid-top,
+    .order-form-grid-bottom,
+    .inline-customer-form {
+        grid-template-columns: 1fr;
+    }
+
+    .inline-action-slot {
+        width: 100%;
     }
 }
 

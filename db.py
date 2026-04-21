@@ -33,8 +33,12 @@ def _apply_migrations(conn):
     if "Delivery_date" not in order_columns:
         conn.execute("ALTER TABLE Orders ADD COLUMN Delivery_date TEXT")
         conn.execute("UPDATE Orders SET Delivery_date = Date WHERE Delivery_date IS NULL")
+    if "Delivery_window" not in order_columns:
+        conn.execute("ALTER TABLE Orders ADD COLUMN Delivery_window TEXT NOT NULL DEFAULT 'morning'")
     if "Status" not in order_columns:
         conn.execute("ALTER TABLE Orders ADD COLUMN Status TEXT NOT NULL DEFAULT 'pending'")
+    conn.execute("UPDATE Orders SET Delivery_date = Date WHERE Delivery_date IS NULL OR Delivery_date = ''")
+    conn.execute("UPDATE Orders SET Delivery_window = 'morning' WHERE Delivery_window IS NULL OR Delivery_window = ''")
     conn.execute("UPDATE Orders SET Status = 'pending' WHERE Status IS NULL OR Status = ''")
     conn.commit()
 
