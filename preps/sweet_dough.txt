@@ -1,0 +1,5 @@
+sweet_dough;10;kg
+raw;hvetemel;6;kg
+raw;sukker;0.7;kg
+raw;smor;0.6;kg
+raw;gjaer;0.12;kg

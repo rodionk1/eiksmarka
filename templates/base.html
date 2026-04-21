@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafeteria Operations</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="hero">
+        <h1>Cafeteria Production and Order Control</h1>
+        <p>Kitchen, Cafeteria 1 and Cafeteria 2 in one workflow.</p>
+    </header>
+
+    {% if message %}
+    <div class="banner ok">{{ message }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="banner error">{{ error }}</div>
+    {% endif %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

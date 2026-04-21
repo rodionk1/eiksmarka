@@ -1,0 +1,6 @@
+# name;quantity;unit;min_quantity;price_pr_unit
+hvetemel;50;kg;10;19
+sukker;20;kg;5;25
+smor;10;kg;3;88
+gjaer;5;kg;1;120
+rosiner;8;kg;2;65

@@ -1,0 +1,4 @@
+raisin_mix;5;kg
+raw;rosiner;4;kg
+raw;sukker;0.4;kg
+raw;smor;0.2;kg
