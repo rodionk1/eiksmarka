@@ -5,13 +5,14 @@
 The web app uses a **full-window tabbed interface** with three role-based sections:
 
 1. **Admin Tab**
+   - View recent orders for the products and warnings
+   - View orders for the stock purchase  
    - Register customer orders for cafeteria 1 or cafeteria 2
-   - View recent orders and warnings  
    - Production and purchase orders auto-created based on availability checks
 
 2. **Kitchen Tab**
-   - Add prep stock batches
    - View production activities with product/prep names (not IDs)
+   - View prep stocks with button Add prep stock batches
    - Complete production activities (sequenced: preps before products)
 
 3. **Cafeteria Tab**

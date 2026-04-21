@@ -28,6 +28,14 @@ def _apply_migrations(conn):
     purchase_columns = {row["name"] for row in conn.execute("PRAGMA table_info(Purchase)").fetchall()}
     if "Purchase_type" not in purchase_columns:
         conn.execute("ALTER TABLE Purchase ADD COLUMN Purchase_type TEXT NOT NULL DEFAULT 'raw'")
+
+    order_columns = {row["name"] for row in conn.execute("PRAGMA table_info(Orders)").fetchall()}
+    if "Delivery_date" not in order_columns:
+        conn.execute("ALTER TABLE Orders ADD COLUMN Delivery_date TEXT")
+        conn.execute("UPDATE Orders SET Delivery_date = Date WHERE Delivery_date IS NULL")
+    if "Status" not in order_columns:
+        conn.execute("ALTER TABLE Orders ADD COLUMN Status TEXT NOT NULL DEFAULT 'pending'")
+    conn.execute("UPDATE Orders SET Status = 'pending' WHERE Status IS NULL OR Status = ''")
     conn.commit()
 
 

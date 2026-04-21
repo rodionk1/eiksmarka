@@ -12,6 +12,20 @@ def _today():
     return date.today().isoformat()
 
 
+def _refresh_order_status(order_id):
+    if order_id is None:
+        return
+    order = fetch_one("SELECT Status FROM Orders WHERE ID = ?", (order_id,))
+    if not order or order["Status"] == "delivered":
+        return
+    pending = fetch_one(
+        "SELECT COUNT(1) as cnt FROM Activity WHERE Order_id = ? AND Accomplished = 0",
+        (order_id,),
+    )
+    if pending and pending["cnt"] == 0:
+        execute("UPDATE Orders SET Status = 'produced' WHERE ID = ?", (order_id,))
+
+
 def parse_recipe_file(path: Path):
     lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.strip().startswith("#")]
     if not lines:
@@ -273,8 +287,8 @@ def place_order(customer_id, cafeteria, items):
         warnings.append(f"Purchase order #{purchase_id} created for missing raw products")
 
     order_id = execute(
-        "INSERT INTO Orders (Customer_id, Cafeteria, Date, Content, Warning) VALUES (?, ?, ?, ?, ?)",
-        (customer_id, cafeteria, _today(), json.dumps(items), " | ".join(warnings)),
+        "INSERT INTO Orders (Customer_id, Cafeteria, Date, Delivery_date, Status, Content, Warning) VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+        (customer_id, cafeteria, _today(), _today(), json.dumps(items), " | ".join(warnings)),
     )
 
     for prep_id, qty in planned_prep_qty.items():
@@ -385,20 +399,50 @@ def complete_activity(activity_id, made_by=None):
         add_prep_stock(activity["Product_id"], quantity, made_by)
 
     execute("UPDATE Activity SET Accomplished = 1, Control = 1 WHERE ID = ?", (activity_id,))
+    _refresh_order_status(activity["Order_id"])
+
+
+def mark_order_delivered(order_id):
+    order = fetch_one("SELECT ID, Status FROM Orders WHERE ID = ?", (order_id,))
+    if not order:
+        raise ValueError("Order not found")
+    if order["Status"] == "pending":
+        raise ValueError("Cannot mark pending order as delivered")
+    execute(
+        "UPDATE Orders SET Status = 'delivered', Delivery_date = ? WHERE ID = ?",
+        (_today(), order_id),
+    )
 
 
 def list_dashboard_data():
     products = fetch_all("SELECT * FROM Products ORDER BY Prod_name")
     preps = fetch_all("SELECT * FROM Preps ORDER BY Prep_name")
-    orders = fetch_all("SELECT * FROM Orders ORDER BY ID DESC LIMIT 20")
+    orders_raw = fetch_all(
+        """
+        SELECT o.*, c.Name as customer_name, c.Phone as customer_phone
+        FROM Orders o
+        LEFT JOIN Customers c ON c.ID = o.Customer_id
+        ORDER BY o.Date DESC, o.ID DESC
+        LIMIT 20
+        """
+    )
     activities = fetch_all("""
         SELECT a.*, 
                COALESCE(pr.Prod_name, p.Prep_name) as item_name
         FROM Activity a
         LEFT JOIN Products pr ON a.Product_type = 'prod' AND a.Product_id = pr.Prod_id
         LEFT JOIN Preps p ON a.Product_type = 'prep' AND a.Product_id = p.Prep_id
-        ORDER BY a.Accomplished ASC, a.ID DESC LIMIT 50
+        ORDER BY a.Date DESC, a.ID DESC LIMIT 50
     """)
+    prep_batches = fetch_all(
+        """
+        SELECT sp.Made_date, p.Prep_name, sp.Quantity, sp.Unit
+        FROM Storage_prep sp
+        JOIN Preps p ON p.Prep_id = sp.Prep_id
+        ORDER BY sp.Made_date DESC, sp.ID DESC
+        LIMIT 100
+        """
+    )
 
     raw_products = fetch_all("""
         SELECT r.Raw_id, r.Raw_name_nor, COALESCE(s.Unit, '') as Unit
@@ -410,6 +454,34 @@ def list_dashboard_data():
     raw_id_to_unit = {str(r["Raw_id"]): r["Unit"] for r in raw_products}
     prod_id_to_name = {str(p["Prod_id"]): p["Prod_name"] for p in products}
     prod_id_to_unit = {str(p["Prod_id"]): p["Unit"] for p in products}
+
+    orders = []
+    for row in orders_raw:
+        try:
+            items = json.loads(row["Content"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            items = []
+        delivery_place = "Cafe 1" if row["Cafeteria"] == "kafe_1" else "Cafe 2"
+        customer_name = row["customer_name"] or "Unknown"
+        customer_phone = row["customer_phone"] or ""
+        for item in items:
+            prod_id = str(item.get("prod_id"))
+            quantity = float(item.get("quantity", 0))
+            orders.append(
+                {
+                    "ID": row["ID"],
+                    "Date": row["Date"],
+                    "Delivery_date": row["Delivery_date"] or row["Date"],
+                    "Status": row["Status"] or "pending",
+                    "delivery_place": delivery_place,
+                    "customer_name": customer_name,
+                    "customer_phone": customer_phone,
+                    "product_name": prod_id_to_name.get(prod_id, f"#{prod_id}"),
+                    "product_qty": quantity,
+                    "product_unit": prod_id_to_unit.get(prod_id, ""),
+                    "Warning": row["Warning"],
+                }
+            )
 
     def _resolve_items(purchases, id_to_name, id_to_unit):
         result = []
@@ -453,6 +525,7 @@ def list_dashboard_data():
         "preps": preps,
         "orders": orders,
         "activities": activities,
+        "prep_batches": prep_batches,
         "raw_purchases": raw_purchases,
         "product_purchases": product_purchases,
         "customers": customers,

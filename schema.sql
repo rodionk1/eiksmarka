@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS Orders (
     Customer_id INTEGER,
     Cafeteria TEXT NOT NULL CHECK(Cafeteria IN ('kafe_1', 'kafe_2')),
     Date TEXT NOT NULL,
+    Delivery_date TEXT,
+    Status TEXT NOT NULL DEFAULT 'pending' CHECK(Status IN ('pending', 'produced', 'delivered')),
     Content TEXT NOT NULL,
     Warning TEXT,
     FOREIGN KEY(Customer_id) REFERENCES Customers(ID)

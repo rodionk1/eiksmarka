@@ -244,6 +244,50 @@ td {
     color: #f57f17;
 }
 
+.status-badge.produced {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge.delivered {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.activity-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid #ebf1e9;
+    border-radius: 8px;
+}
+
+.activity-scroll .data-table {
+    margin-top: 0;
+}
+
+.inline-prep-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.inline-prep-row label {
+    margin-bottom: 0;
+}
+
+.qty-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.qty-with-unit span {
+    min-width: 2.2rem;
+    font-weight: 600;
+    color: #2f3e34;
+}
+
 .stock-section {
     margin-top: 2rem;
 }
@@ -407,6 +451,10 @@ td {
 
     .purchase-item button {
         width: 100%;
+    }
+
+    .inline-prep-row {
+        grid-template-columns: 1fr;
     }
 }
 

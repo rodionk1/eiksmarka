@@ -5,6 +5,7 @@ from services import (
     complete_activity,
     list_dashboard_data,
     load_all_recipe_data,
+    mark_order_delivered,
     place_order,
     seed_defaults,
     get_stock_snapshot,
@@ -122,6 +123,15 @@ def update_purchase(purchase_id):
                 contents[raw_id] = float(qty)
         update_purchase_order(purchase_id, contents)
         return redirect(url_for("index", message=f"Purchase order #{purchase_id} updated"))
+    except Exception as exc:
+        return redirect(url_for("index", error=str(exc)))
+
+
+@app.post("/orders/<int:order_id>/delivered")
+def set_order_delivered(order_id):
+    try:
+        mark_order_delivered(order_id)
+        return redirect(url_for("index", message=f"Order #{order_id} marked delivered"))
     except Exception as exc:
         return redirect(url_for("index", error=str(exc)))
 
