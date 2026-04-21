@@ -73,12 +73,18 @@
                         <tr>
                             <td>#{{ p.ID }}</td>
                             <td>{{ p.Date }}</td>
-                            <td>{{ p.Contents }}</td>
+                            <td>
+                                <table class="items-subtable">
+                                    {% for item in p.items_resolved %}
+                                    <tr><td>{{ item.name }}</td><td>{{ '%.2f'|format(item.qty) }} {{ item.unit }}</td></tr>
+                                    {% endfor %}
+                                </table>
+                            </td>
                             <td>{{ p.made_by_name }}</td>
                             <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
                             <td>
                                 {% if not p.Accomplished %}
-                                <button class="action-btn" onclick="editAdminRawPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                <button class="action-btn edit-raw-purchase" data-id="{{ p.ID }}" data-items='{{ p.items_resolved | tojson }}'>Edit</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -119,12 +125,18 @@
                         <tr>
                             <td>#{{ p.ID }}</td>
                             <td>{{ p.Date }}</td>
-                            <td>{{ p.Contents }}</td>
+                            <td>
+                                <table class="items-subtable">
+                                    {% for item in p.items_resolved %}
+                                    <tr><td>{{ item.name }}</td><td>{{ '%.2f'|format(item.qty) }} {{ item.unit }}</td></tr>
+                                    {% endfor %}
+                                </table>
+                            </td>
                             <td>{{ p.made_by_name }}</td>
                             <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
                             <td>
                                 {% if not p.Accomplished %}
-                                <button class="action-btn" onclick="editKitchenRawPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                <button class="action-btn edit-raw-purchase" data-id="{{ p.ID }}" data-items='{{ p.items_resolved | tojson }}'>Edit</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -188,7 +200,7 @@
 
             <div class="form-card">
                 <h3>Product Purchase Orders</h3>
-                <button class="primary-btn" onclick="openProductPurchaseModal()">+ New Product Purchase Order</button>
+                <button class="primary-btn" onclick="openNewProductPurchaseModal()">+ New Product Purchase Order</button>
                 <table class="data-table">
                     <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
@@ -196,11 +208,17 @@
                         <tr>
                             <td>#{{ p.ID }}</td>
                             <td>{{ p.Date }}</td>
-                            <td>{{ p.Contents }}</td>
+                            <td>
+                                <table class="items-subtable">
+                                    {% for item in p.items_resolved %}
+                                    <tr><td>{{ item.name }}</td><td>{{ '%.2f'|format(item.qty) }} {{ item.unit }}</td></tr>
+                                    {% endfor %}
+                                </table>
+                            </td>
                             <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
                             <td>
                                 {% if not p.Accomplished %}
-                                <button class="action-btn" onclick="editProductPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                <button class="action-btn edit-product-purchase" data-id="{{ p.ID }}" data-items='{{ p.items_resolved | tojson }}'>Edit</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -343,17 +361,35 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const lastTab = localStorage.getItem('activeTab') || 'admin';
 switchTab(lastTab);
 
+// Event delegation for edit buttons (avoids inline JSON in onclick)
+document.addEventListener('click', function(e) {
+    const rawBtn = e.target.closest('.edit-raw-purchase');
+    if (rawBtn) {
+        const items = JSON.parse(rawBtn.dataset.items);
+        editRawPurchase(rawBtn.dataset.id, items);
+    }
+    const prodBtn = e.target.closest('.edit-product-purchase');
+    if (prodBtn) {
+        const items = JSON.parse(prodBtn.dataset.items);
+        editProductPurchase(prodBtn.dataset.id, items);
+    }
+});
+
 // Raw Purchase Functions (Admin & Kitchen)
 function openRawPurchaseModal() {
     document.getElementById('rawPurchaseModal').style.display = 'block';
 }
 
 function openAdminRawPurchaseModal() {
+    document.getElementById('rawPurchaseForm').reset();
+    document.getElementById('rawPurchaseForm').action = '/purchase';
+    document.getElementById('rawPurchaseItems').innerHTML = '';
+    addRawPurchaseItem();
     openRawPurchaseModal();
 }
 
 function openKitchenRawPurchaseModal() {
-    openRawPurchaseModal();
+    openAdminRawPurchaseModal();
 }
 
 function closeRawPurchaseModal() {
@@ -369,57 +405,48 @@ function addRawPurchaseItem() {
         <label>Raw Material
             <select name="raw_id">
                 <option value="">-- Select --</option>
-                {% for r in data.raw_products %}<option value="{{ r.Raw_id }}">{{ r.Raw_name_nor }}</option>{% endfor %}
+                {% for r in data.raw_products %}<option value="{{ r.Raw_id }}" data-unit="{{ r.Unit }}">{{ r.Raw_name_nor }}</option>{% endfor %}
             </select>
         </label>
         <label>Quantity
             <input type="number" step="0.01" min="0.01" name="quantity" value="0">
         </label>
-        <button type="button" onclick="removeRawPurchaseItem(this)">Remove</button>
+        <button type="button" onclick="this.closest('.purchase-item').remove()">Remove</button>
     `;
     container.appendChild(newItem);
 }
 
-function removeRawPurchaseItem(btn) {
-    btn.parentElement.remove();
-}
-
-function editRawPurchase(purchaseId, contents) {
-    const items = JSON.parse(contents);
+function editRawPurchase(purchaseId, items) {
     document.getElementById('rawPurchaseForm').action = `/purchase/${purchaseId}/update`;
     const container = document.getElementById('rawPurchaseItems');
     container.innerHTML = '';
-    for (const [rawId, qty] of Object.entries(items)) {
-        const item = document.createElement('div');
-        item.className = 'purchase-item';
-        item.innerHTML = `
-            <label>Raw Material
-                <select name="raw_id">
-                    <option value="">-- Select --</option>
-                    {% for r in data.raw_products %}<option value="{{ r.Raw_id }}" {% if r.Raw_id|string == rawId %}selected{% endif %}>{{ r.Raw_name_nor }}</option>{% endfor %}
-                </select>
+    for (const item of items) {
+        const el = document.createElement('div');
+        el.className = 'purchase-item';
+        el.innerHTML = `
+            <span class="item-name">${item.name}</span>
+            <input type="hidden" name="raw_id" value="${item.id}">
+            <label>Quantity (${item.unit})
+                <input type="number" step="0.01" min="0.01" name="quantity" value="${item.qty}">
             </label>
-            <label>Quantity
-                <input type="number" step="0.01" min="0.01" name="quantity" value="${qty}">
-            </label>
-            <button type="button" onclick="removeRawPurchaseItem(this)">Remove</button>
+            <button type="button" onclick="this.closest('.purchase-item').remove()">Remove</button>
         `;
-        container.appendChild(item);
+        container.appendChild(el);
     }
     openRawPurchaseModal();
-}
-
-function editAdminRawPurchase(purchaseId, contents) {
-    editRawPurchase(purchaseId, contents);
-}
-
-function editKitchenRawPurchase(purchaseId, contents) {
-    editRawPurchase(purchaseId, contents);
 }
 
 // Product Purchase Functions
 function openProductPurchaseModal() {
     document.getElementById('productPurchaseModal').style.display = 'block';
+}
+
+function openNewProductPurchaseModal() {
+    document.getElementById('productPurchaseForm').reset();
+    document.getElementById('productPurchaseForm').action = '/purchase';
+    document.getElementById('productPurchaseItems').innerHTML = '';
+    addProductPurchaseItem();
+    openProductPurchaseModal();
 }
 
 function closeProductPurchaseModal() {
@@ -435,42 +462,33 @@ function addProductPurchaseItem() {
         <label>Product
             <select name="raw_id">
                 <option value="">-- Select --</option>
-                {% for p in data.products %}<option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>{% endfor %}
+                {% for p in data.products %}<option value="{{ p.Prod_id }}" data-unit="{{ p.Unit }}">{{ p.Prod_name }}</option>{% endfor %}
             </select>
         </label>
         <label>Quantity
             <input type="number" step="0.01" min="0.01" name="quantity" value="0">
         </label>
-        <button type="button" onclick="removeProductPurchaseItem(this)">Remove</button>
+        <button type="button" onclick="this.closest('.purchase-item').remove()">Remove</button>
     `;
     container.appendChild(newItem);
 }
 
-function removeProductPurchaseItem(btn) {
-    btn.parentElement.remove();
-}
-
-function editProductPurchase(purchaseId, contents) {
-    const items = JSON.parse(contents);
+function editProductPurchase(purchaseId, items) {
     document.getElementById('productPurchaseForm').action = `/purchase/${purchaseId}/update`;
     const container = document.getElementById('productPurchaseItems');
     container.innerHTML = '';
-    for (const [prodId, qty] of Object.entries(items)) {
-        const item = document.createElement('div');
-        item.className = 'purchase-item';
-        item.innerHTML = `
-            <label>Product
-                <select name="raw_id">
-                    <option value="">-- Select --</option>
-                    {% for p in data.products %}<option value="{{ p.Prod_id }}" {% if p.Prod_id|string == prodId %}selected{% endif %}>{{ p.Prod_name }}</option>{% endfor %}
-                </select>
+    for (const item of items) {
+        const el = document.createElement('div');
+        el.className = 'purchase-item';
+        el.innerHTML = `
+            <span class="item-name">${item.name}</span>
+            <input type="hidden" name="raw_id" value="${item.id}">
+            <label>Quantity (${item.unit})
+                <input type="number" step="0.01" min="0.01" name="quantity" value="${item.qty}">
             </label>
-            <label>Quantity
-                <input type="number" step="0.01" min="0.01" name="quantity" value="${qty}">
-            </label>
-            <button type="button" onclick="removeProductPurchaseItem(this)">Remove</button>
+            <button type="button" onclick="this.closest('.purchase-item').remove()">Remove</button>
         `;
-        container.appendChild(item);
+        container.appendChild(el);
     }
     openProductPurchaseModal();
 }

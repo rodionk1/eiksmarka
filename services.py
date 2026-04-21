@@ -399,29 +399,55 @@ def list_dashboard_data():
         LEFT JOIN Preps p ON a.Product_type = 'prep' AND a.Product_id = p.Prep_id
         ORDER BY a.Accomplished ASC, a.ID DESC LIMIT 50
     """)
-    
+
+    raw_products = fetch_all("""
+        SELECT r.Raw_id, r.Raw_name_nor, COALESCE(s.Unit, '') as Unit
+        FROM Raw_products r
+        LEFT JOIN Storage_raw s ON r.Raw_id = s.Raw_id
+        ORDER BY r.Raw_name_nor
+    """)
+    raw_id_to_name = {str(r["Raw_id"]): r["Raw_name_nor"] for r in raw_products}
+    raw_id_to_unit = {str(r["Raw_id"]): r["Unit"] for r in raw_products}
+    prod_id_to_name = {str(p["Prod_id"]): p["Prod_name"] for p in products}
+    prod_id_to_unit = {str(p["Prod_id"]): p["Unit"] for p in products}
+
+    def _resolve_items(purchases, id_to_name, id_to_unit):
+        result = []
+        for p in purchases:
+            row = dict(p)
+            try:
+                contents = json.loads(row.get("Contents") or "{}")
+            except (json.JSONDecodeError, TypeError):
+                contents = {}
+            row["items_resolved"] = [
+                {"id": k, "name": id_to_name.get(str(k), f"#{k}"), "qty": v, "unit": id_to_unit.get(str(k), "")}
+                for k, v in contents.items()
+            ]
+            result.append(row)
+        return result
+
     # Separate purchase orders by type
-    raw_purchases = fetch_all("""
+    raw_purchases_raw = fetch_all("""
         SELECT p.*, COALESCE(w.Name, 'System') as made_by_name
         FROM Purchase p
         LEFT JOIN Workers w ON p.Made_by = w.ID
         WHERE p.Purchase_type = 'raw'
         ORDER BY p.Accomplished ASC, p.ID DESC LIMIT 20
     """)
-    product_purchases = fetch_all("""
+    product_purchases_raw = fetch_all("""
         SELECT p.*, COALESCE(w.Name, 'System') as made_by_name
         FROM Purchase p
         LEFT JOIN Workers w ON p.Made_by = w.ID
         WHERE p.Purchase_type = 'product'
         ORDER BY p.Accomplished ASC, p.ID DESC LIMIT 20
     """)
-    
+
+    raw_purchases = _resolve_items(raw_purchases_raw, raw_id_to_name, raw_id_to_unit)
+    product_purchases = _resolve_items(product_purchases_raw, prod_id_to_name, prod_id_to_unit)
+
     customers = fetch_all("SELECT * FROM Customers ORDER BY Name")
     workers = fetch_all("SELECT * FROM Workers ORDER BY Name")
-    
-    # Extract raw products for purchase modal
-    raw_products = fetch_all("SELECT Raw_id, Raw_name_nor FROM Raw_products ORDER BY Raw_name_nor")
-    
+
     return {
         "products": products,
         "preps": preps,

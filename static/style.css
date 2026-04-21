@@ -348,6 +348,35 @@ td {
     border-bottom: 1px solid #f0f0f0;
 }
 
+.purchase-item .item-name {
+    font-weight: 600;
+    color: #1a1a2e;
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 0.35rem;
+}
+
+.items-subtable {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+}
+
+.items-subtable td {
+    padding: 0.15rem 0.5rem;
+    border: none;
+}
+
+.items-subtable td:first-child {
+    font-weight: 500;
+}
+
+.items-subtable td:last-child {
+    color: #555;
+    text-align: right;
+    white-space: nowrap;
+}
+
 .purchase-item:last-child {
     margin-bottom: 0;
     padding-bottom: 0;
