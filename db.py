@@ -40,6 +40,33 @@ def _apply_migrations(conn):
     conn.execute("UPDATE Orders SET Delivery_date = Date WHERE Delivery_date IS NULL OR Delivery_date = ''")
     conn.execute("UPDATE Orders SET Delivery_window = 'morning' WHERE Delivery_window IS NULL OR Delivery_window = ''")
     conn.execute("UPDATE Orders SET Status = 'pending' WHERE Status IS NULL OR Status = ''")
+
+    # Keep a single prep stock row per prep with total quantity and latest production date.
+    conn.execute("DROP TABLE IF EXISTS _storage_prep_agg")
+    conn.execute(
+        """
+        CREATE TEMP TABLE _storage_prep_agg AS
+        SELECT
+            sp.Prep_id AS Prep_id,
+            COALESCE(SUM(sp.Quantity), 0) AS Quantity,
+            MAX(sp.Made_date) AS Made_date,
+            MAX(sp.Made_by) AS Made_by
+        FROM Storage_prep sp
+        GROUP BY sp.Prep_id
+        """
+    )
+    conn.execute("DELETE FROM Storage_prep")
+    conn.execute(
+        """
+        INSERT INTO Storage_prep (Prep_id, Quantity, Unit, Made_date, Made_by)
+        SELECT a.Prep_id, a.Quantity, p.Unit, COALESCE(a.Made_date, DATE('now')), a.Made_by
+        FROM _storage_prep_agg a
+        JOIN Preps p ON p.Prep_id = a.Prep_id
+        WHERE a.Quantity > 0
+        """
+    )
+    conn.execute("DROP TABLE IF EXISTS _storage_prep_agg")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_storage_prep_prep_id_unique ON Storage_prep(Prep_id)")
     conn.commit()
 
 

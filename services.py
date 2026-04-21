@@ -319,8 +319,15 @@ def place_order(customer_id, place, items, delivery_date=None, delivery_window="
 
 def add_prep_stock(prep_id, quantity, made_by=None):
     execute(
-        "INSERT INTO Storage_prep (Prep_id, Quantity, Unit, Made_date, Made_by) "
-        "SELECT Prep_id, ?, Unit, ?, ? FROM Preps WHERE Prep_id = ?",
+        """
+        INSERT INTO Storage_prep (Prep_id, Quantity, Unit, Made_date, Made_by)
+        SELECT Prep_id, ?, Unit, ?, ? FROM Preps WHERE Prep_id = ?
+        ON CONFLICT(Prep_id) DO UPDATE SET
+            Quantity = Storage_prep.Quantity + excluded.Quantity,
+            Unit = excluded.Unit,
+            Made_date = excluded.Made_date,
+            Made_by = excluded.Made_by
+        """,
         (quantity, _today(), made_by, prep_id),
     )
 
@@ -351,25 +358,18 @@ def _consume_raw(raw_requirements):
 def _consume_prep(prep_requirements):
     with get_connection() as conn:
         for prep_id, needed in prep_requirements.items():
-            available = conn.execute(
-                "SELECT COALESCE(SUM(Quantity), 0) as qty FROM Storage_prep WHERE Prep_id = ?",
+            row = conn.execute(
+                "SELECT Quantity FROM Storage_prep WHERE Prep_id = ?",
                 (int(prep_id),),
-            ).fetchone()["qty"]
-            if available < needed:
+            ).fetchone()
+            if not row or row["Quantity"] < needed:
                 raise ValueError(f"Insufficient prep {prep_id}")
 
-            rows = conn.execute(
-                "SELECT ID, Quantity FROM Storage_prep WHERE Prep_id = ? ORDER BY ID",
-                (int(prep_id),),
-            ).fetchall()
-            remaining = needed
-            for row in rows:
-                if remaining <= 0:
-                    break
-                used = min(remaining, row["Quantity"])
-                conn.execute("UPDATE Storage_prep SET Quantity = Quantity - ? WHERE ID = ?", (used, row["ID"]))
-                remaining -= used
-            conn.execute("DELETE FROM Storage_prep WHERE Quantity <= 0")
+            conn.execute(
+                "UPDATE Storage_prep SET Quantity = Quantity - ? WHERE Prep_id = ?",
+                (needed, int(prep_id)),
+            )
+            conn.execute("DELETE FROM Storage_prep WHERE Prep_id = ? AND Quantity <= 0", (int(prep_id),))
         conn.commit()
 
 
@@ -457,11 +457,12 @@ def list_dashboard_data():
     """)
     prep_batches = fetch_all(
         """
-        SELECT sp.Made_date, p.Prep_name, sp.Quantity, sp.Unit
-        FROM Storage_prep sp
-        JOIN Preps p ON p.Prep_id = sp.Prep_id
-        ORDER BY sp.Made_date DESC, sp.ID DESC
-        LIMIT 100
+        SELECT MAX(sp.Made_date) as Made_date, p.Prep_name, COALESCE(SUM(sp.Quantity), 0) as Quantity, p.Unit
+        FROM Preps p
+        LEFT JOIN Storage_prep sp ON sp.Prep_id = p.Prep_id
+        GROUP BY p.Prep_id
+        HAVING COALESCE(SUM(sp.Quantity), 0) > 0
+        ORDER BY Made_date DESC, p.Prep_name
         """
     )
 

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS Preps (
 
 CREATE TABLE IF NOT EXISTS Storage_prep (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    Prep_id INTEGER NOT NULL,
+    Prep_id INTEGER NOT NULL UNIQUE,
     Quantity REAL NOT NULL,
     Unit TEXT NOT NULL CHECK(Unit IN ('stk', 'kg', 'g')),
     Made_date TEXT NOT NULL,
