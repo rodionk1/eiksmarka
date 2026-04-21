@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS Purchase (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
     Date TEXT NOT NULL,
     Contents TEXT NOT NULL,
+    Purchase_type TEXT NOT NULL CHECK(Purchase_type IN ('raw', 'product')) DEFAULT 'raw',
     Made_by INTEGER,
     Control INTEGER NOT NULL DEFAULT 0,
     Accomplished INTEGER NOT NULL DEFAULT 0

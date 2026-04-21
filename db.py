@@ -24,6 +24,10 @@ def _apply_migrations(conn):
     activity_columns = {row["name"] for row in conn.execute("PRAGMA table_info(Activity)").fetchall()}
     if "Order_id" not in activity_columns:
         conn.execute("ALTER TABLE Activity ADD COLUMN Order_id INTEGER")
+    
+    purchase_columns = {row["name"] for row in conn.execute("PRAGMA table_info(Purchase)").fetchall()}
+    if "Purchase_type" not in purchase_columns:
+        conn.execute("ALTER TABLE Purchase ADD COLUMN Purchase_type TEXT NOT NULL DEFAULT 'raw'")
     conn.commit()
 
 

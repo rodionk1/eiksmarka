@@ -62,6 +62,30 @@
                     </tbody>
                 </table>
             </div>
+
+            <div class="form-card">
+                <h3>Raw Material Purchase Orders</h3>
+                <button class="primary-btn" onclick="openAdminRawPurchaseModal()">+ New Purchase Order</button>
+                <table class="data-table">
+                    <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Made By</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for p in data.raw_purchases %}
+                        <tr>
+                            <td>#{{ p.ID }}</td>
+                            <td>{{ p.Date }}</td>
+                            <td>{{ p.Contents }}</td>
+                            <td>{{ p.made_by_name }}</td>
+                            <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
+                            <td>
+                                {% if not p.Accomplished %}
+                                <button class="action-btn" onclick="editAdminRawPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
 
@@ -84,6 +108,30 @@
                 </label>
                 <button type="submit">Add Prep Stock</button>
             </form>
+
+            <div class="form-card">
+                <h3>Raw Material Purchase Orders</h3>
+                <button class="primary-btn" onclick="openKitchenRawPurchaseModal()">+ New Purchase Order</button>
+                <table class="data-table">
+                    <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Made By</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for p in data.raw_purchases %}
+                        <tr>
+                            <td>#{{ p.ID }}</td>
+                            <td>{{ p.Date }}</td>
+                            <td>{{ p.Contents }}</td>
+                            <td>{{ p.made_by_name }}</td>
+                            <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
+                            <td>
+                                {% if not p.Accomplished %}
+                                <button class="action-btn" onclick="editKitchenRawPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
             <div class="form-card">
                 <h3>Production Activities</h3>
@@ -139,12 +187,12 @@
             </form>
 
             <div class="form-card">
-                <h3>Purchase Orders</h3>
-                <button class="primary-btn" onclick="openPurchaseModal()">+ New Purchase Order</button>
+                <h3>Product Purchase Orders</h3>
+                <button class="primary-btn" onclick="openProductPurchaseModal()">+ New Product Purchase Order</button>
                 <table class="data-table">
                     <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
-                        {% for p in data.purchases %}
+                        {% for p in data.product_purchases %}
                         <tr>
                             <td>#{{ p.ID }}</td>
                             <td>{{ p.Date }}</td>
@@ -152,7 +200,7 @@
                             <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
                             <td>
                                 {% if not p.Accomplished %}
-                                <button class="action-btn" onclick="editPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                <button class="action-btn" onclick="editProductPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -218,13 +266,14 @@
     </section>
 </div>
 
-<!-- PURCHASE MODAL -->
-<div id="purchaseModal" class="modal">
+<!-- RAW MATERIAL PURCHASE MODAL (Admin & Kitchen) -->
+<div id="rawPurchaseModal" class="modal">
     <div class="modal-content">
-        <span class="close" onclick="closePurchaseModal()">&times;</span>
-        <h2>Purchase Order</h2>
-        <form id="purchaseForm" method="post" action="/purchase">
-            <div id="purchaseItems">
+        <span class="close" onclick="closeRawPurchaseModal()">&times;</span>
+        <h2>Raw Material Purchase Order</h2>
+        <form id="rawPurchaseForm" method="post" action="/purchase">
+            <input type="hidden" name="purchase_type" value="raw">
+            <div id="rawPurchaseItems">
                 <div class="purchase-item">
                     <label>Raw Material
                         <select name="raw_id" required>
@@ -237,10 +286,39 @@
                     <label>Quantity
                         <input type="number" step="0.01" min="0.01" name="quantity" value="0">
                     </label>
-                    <button type="button" onclick="removePurchaseItem(this)">Remove</button>
+                    <button type="button" onclick="removeRawPurchaseItem(this)">Remove</button>
                 </div>
             </div>
-            <button type="button" onclick="addPurchaseItem()" class="secondary-btn">+ Add Item</button>
+            <button type="button" onclick="addRawPurchaseItem()" class="secondary-btn">+ Add Item</button>
+            <button type="submit" class="primary-btn">Create Purchase Order</button>
+        </form>
+    </div>
+</div>
+
+<!-- PRODUCT PURCHASE MODAL (Cafeteria) -->
+<div id="productPurchaseModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeProductPurchaseModal()">&times;</span>
+        <h2>Ready Product Purchase Order</h2>
+        <form id="productPurchaseForm" method="post" action="/purchase">
+            <input type="hidden" name="purchase_type" value="product">
+            <div id="productPurchaseItems">
+                <div class="purchase-item">
+                    <label>Product
+                        <select name="raw_id" required>
+                            <option value="">-- Select --</option>
+                            {% for p in data.products %}
+                            <option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>Quantity
+                        <input type="number" step="0.01" min="0.01" name="quantity" value="0">
+                    </label>
+                    <button type="button" onclick="removeProductPurchaseItem(this)">Remove</button>
+                </div>
+            </div>
+            <button type="button" onclick="addProductPurchaseItem()" class="secondary-btn">+ Add Item</button>
             <button type="submit" class="primary-btn">Create Purchase Order</button>
         </form>
     </div>
@@ -265,17 +343,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const lastTab = localStorage.getItem('activeTab') || 'admin';
 switchTab(lastTab);
 
-function openPurchaseModal() {
-    document.getElementById('purchaseModal').style.display = 'block';
+// Raw Purchase Functions (Admin & Kitchen)
+function openRawPurchaseModal() {
+    document.getElementById('rawPurchaseModal').style.display = 'block';
 }
 
-function closePurchaseModal() {
-    document.getElementById('purchaseModal').style.display = 'none';
-    document.getElementById('purchaseForm').action = '/purchase';
+function openAdminRawPurchaseModal() {
+    openRawPurchaseModal();
 }
 
-function addPurchaseItem() {
-    const container = document.getElementById('purchaseItems');
+function openKitchenRawPurchaseModal() {
+    openRawPurchaseModal();
+}
+
+function closeRawPurchaseModal() {
+    document.getElementById('rawPurchaseModal').style.display = 'none';
+    document.getElementById('rawPurchaseForm').action = '/purchase';
+}
+
+function addRawPurchaseItem() {
+    const container = document.getElementById('rawPurchaseItems');
     const newItem = document.createElement('div');
     newItem.className = 'purchase-item';
     newItem.innerHTML = `
@@ -288,19 +375,19 @@ function addPurchaseItem() {
         <label>Quantity
             <input type="number" step="0.01" min="0.01" name="quantity" value="0">
         </label>
-        <button type="button" onclick="removePurchaseItem(this)">Remove</button>
+        <button type="button" onclick="removeRawPurchaseItem(this)">Remove</button>
     `;
     container.appendChild(newItem);
 }
 
-function removePurchaseItem(btn) {
+function removeRawPurchaseItem(btn) {
     btn.parentElement.remove();
 }
 
-function editPurchase(purchaseId, contents) {
+function editRawPurchase(purchaseId, contents) {
     const items = JSON.parse(contents);
-    document.getElementById('purchaseForm').action = `/purchase/${purchaseId}/update`;
-    const container = document.getElementById('purchaseItems');
+    document.getElementById('rawPurchaseForm').action = `/purchase/${purchaseId}/update`;
+    const container = document.getElementById('rawPurchaseItems');
     container.innerHTML = '';
     for (const [rawId, qty] of Object.entries(items)) {
         const item = document.createElement('div');
@@ -315,18 +402,89 @@ function editPurchase(purchaseId, contents) {
             <label>Quantity
                 <input type="number" step="0.01" min="0.01" name="quantity" value="${qty}">
             </label>
-            <button type="button" onclick="removePurchaseItem(this)">Remove</button>
+            <button type="button" onclick="removeRawPurchaseItem(this)">Remove</button>
         `;
         container.appendChild(item);
     }
-    openPurchaseModal();
+    openRawPurchaseModal();
+}
+
+function editAdminRawPurchase(purchaseId, contents) {
+    editRawPurchase(purchaseId, contents);
+}
+
+function editKitchenRawPurchase(purchaseId, contents) {
+    editRawPurchase(purchaseId, contents);
+}
+
+// Product Purchase Functions
+function openProductPurchaseModal() {
+    document.getElementById('productPurchaseModal').style.display = 'block';
+}
+
+function closeProductPurchaseModal() {
+    document.getElementById('productPurchaseModal').style.display = 'none';
+    document.getElementById('productPurchaseForm').action = '/purchase';
+}
+
+function addProductPurchaseItem() {
+    const container = document.getElementById('productPurchaseItems');
+    const newItem = document.createElement('div');
+    newItem.className = 'purchase-item';
+    newItem.innerHTML = `
+        <label>Product
+            <select name="raw_id">
+                <option value="">-- Select --</option>
+                {% for p in data.products %}<option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>Quantity
+            <input type="number" step="0.01" min="0.01" name="quantity" value="0">
+        </label>
+        <button type="button" onclick="removeProductPurchaseItem(this)">Remove</button>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeProductPurchaseItem(btn) {
+    btn.parentElement.remove();
+}
+
+function editProductPurchase(purchaseId, contents) {
+    const items = JSON.parse(contents);
+    document.getElementById('productPurchaseForm').action = `/purchase/${purchaseId}/update`;
+    const container = document.getElementById('productPurchaseItems');
+    container.innerHTML = '';
+    for (const [prodId, qty] of Object.entries(items)) {
+        const item = document.createElement('div');
+        item.className = 'purchase-item';
+        item.innerHTML = `
+            <label>Product
+                <select name="raw_id">
+                    <option value="">-- Select --</option>
+                    {% for p in data.products %}<option value="{{ p.Prod_id }}" {% if p.Prod_id|string == prodId %}selected{% endif %}>{{ p.Prod_name }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>Quantity
+                <input type="number" step="0.01" min="0.01" name="quantity" value="${qty}">
+            </label>
+            <button type="button" onclick="removeProductPurchaseItem(this)">Remove</button>
+        `;
+        container.appendChild(item);
+    }
+    openProductPurchaseModal();
 }
 
 window.onclick = function(event) {
-    const modal = document.getElementById('purchaseModal');
-    if (event.target == modal) {
-        modal.style.display = 'none';
-        document.getElementById('purchaseForm').action = '/purchase';
+    const rawModal = document.getElementById('rawPurchaseModal');
+    const productModal = document.getElementById('productPurchaseModal');
+    if (event.target == rawModal) {
+        rawModal.style.display = 'none';
+        document.getElementById('rawPurchaseForm').action = '/purchase';
+    }
+    if (event.target == productModal) {
+        productModal.style.display = 'none';
+        document.getElementById('productPurchaseForm').action = '/purchase';
     }
 }
 </script>

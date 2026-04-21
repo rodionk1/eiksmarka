@@ -223,7 +223,7 @@ def _upsert_purchase_for_missing_raw(missing_raw):
     if not missing_raw:
         return None
     return execute(
-        "INSERT INTO Purchase (Date, Contents, Made_by, Control, Accomplished) VALUES (?, ?, NULL, 0, 0)",
+        "INSERT INTO Purchase (Date, Contents, Made_by, Control, Accomplished, Purchase_type) VALUES (?, ?, NULL, 0, 0, 'raw')",
         (_today(), json.dumps(missing_raw)),
     )
 
@@ -399,16 +399,23 @@ def list_dashboard_data():
         LEFT JOIN Preps p ON a.Product_type = 'prep' AND a.Product_id = p.Prep_id
         ORDER BY a.Accomplished ASC, a.ID DESC LIMIT 50
     """)
-    purchases = fetch_all("""
-        SELECT p.*, COALESCE(w.Name, 'System') as made_by_name,
-               GROUP_CONCAT(rp.Raw_name_nor || ' (' || json_extract(p.Contents, '$[' || json_array_length(p.Contents) - 1 || ']') || ')', ', ') as raw_list
+    
+    # Separate purchase orders by type
+    raw_purchases = fetch_all("""
+        SELECT p.*, COALESCE(w.Name, 'System') as made_by_name
         FROM Purchase p
         LEFT JOIN Workers w ON p.Made_by = w.ID
-        LEFT JOIN json_each(p.Contents) je ON true
-        LEFT JOIN Raw_products rp ON rp.Raw_id = json_extract(p.Contents, '$.' || je.key)
-        GROUP BY p.ID
+        WHERE p.Purchase_type = 'raw'
         ORDER BY p.Accomplished ASC, p.ID DESC LIMIT 20
     """)
+    product_purchases = fetch_all("""
+        SELECT p.*, COALESCE(w.Name, 'System') as made_by_name
+        FROM Purchase p
+        LEFT JOIN Workers w ON p.Made_by = w.ID
+        WHERE p.Purchase_type = 'product'
+        ORDER BY p.Accomplished ASC, p.ID DESC LIMIT 20
+    """)
+    
     customers = fetch_all("SELECT * FROM Customers ORDER BY Name")
     workers = fetch_all("SELECT * FROM Workers ORDER BY Name")
     
@@ -420,7 +427,8 @@ def list_dashboard_data():
         "preps": preps,
         "orders": orders,
         "activities": activities,
-        "purchases": purchases,
+        "raw_purchases": raw_purchases,
+        "product_purchases": product_purchases,
         "customers": customers,
         "workers": workers,
         "raw_products": raw_products,
@@ -435,13 +443,16 @@ def seed_defaults():
         execute("INSERT INTO Customers (Phone, Name, Email) VALUES ('00000000', 'Walk-in', 'local@shop.no')")
 
 
-def create_purchase_order(order_contents, worker_id=None):
-    """Create a manual purchase order. order_contents is dict of {raw_id: quantity}."""
+def create_purchase_order(order_contents, purchase_type="raw", worker_id=None):
+    """Create a manual purchase order. order_contents is dict of {raw_id: quantity} or {product_id: quantity}.
+    purchase_type must be 'raw' or 'product'."""
     if not order_contents:
         raise ValueError("Purchase order must contain at least one item")
+    if purchase_type not in ("raw", "product"):
+        raise ValueError("Purchase type must be 'raw' or 'product'")
     return execute(
-        "INSERT INTO Purchase (Date, Contents, Made_by, Control, Accomplished) VALUES (?, ?, ?, 0, 0)",
-        (_today(), json.dumps(order_contents), worker_id),
+        "INSERT INTO Purchase (Date, Contents, Made_by, Control, Accomplished, Purchase_type) VALUES (?, ?, ?, 0, 0, ?)",
+        (_today(), json.dumps(order_contents), worker_id, purchase_type),
     )
 
 

@@ -96,13 +96,16 @@ def stock_product():
 @app.post("/purchase")
 def create_purchase():
     try:
+        purchase_type = request.form.get("purchase_type", "raw")
+        if purchase_type not in ("raw", "product"):
+            purchase_type = "raw"
         items = request.form.getlist("raw_id")
         quantities = request.form.getlist("quantity")
         contents = {}
         for raw_id, qty in zip(items, quantities):
             if raw_id and qty:
                 contents[raw_id] = float(qty)
-        purchase_id = create_purchase_order(contents, worker_id=1)
+        purchase_id = create_purchase_order(contents, purchase_type=purchase_type, worker_id=1)
         return redirect(url_for("index", message=f"Purchase order #{purchase_id} created"))
     except Exception as exc:
         return redirect(url_for("index", error=str(exc)))
