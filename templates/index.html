@@ -1,171 +1,333 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="actions">
+<div class="setup-banner">
     <form method="post" action="/setup">
         <button type="submit">Initialize DB + Load Files</button>
     </form>
-</section>
+</div>
 
-<section class="grid">
-    <article class="card">
-        <h2>Admin</h2>
-        <form method="post" action="/orders" class="stack">
-            <label>Customer
-                <select name="customer_id" required>
-                    {% for c in data.customers %}
-                    <option value="{{ c.ID }}">{{ c.Name }} ({{ c.Phone }})</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Cafeteria
-                <select name="cafeteria" required>
-                    <option value="kafe_1">Kafe 1</option>
-                    <option value="kafe_2">Kafe 2</option>
-                </select>
-            </label>
-            <label>Product
-                <select name="prod_id" required>
-                    {% for p in data.products %}
-                    <option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>
-                    {% endfor %}
+<div class="tabs-container">
+    <div class="tabs-header">
+        <button class="tab-btn active" data-tab="admin">Admin</button>
+        <button class="tab-btn" data-tab="kitchen">Kitchen</button>
+        <button class="tab-btn" data-tab="cafeteria">Cafeteria</button>
+    </div>
+
+    <!-- ADMIN TAB -->
+    <section class="tab-content active" id="admin">
+        <div class="tab-inner">
+            <h2>Admin - Order Management</h2>
+            
+            <form method="post" action="/orders" class="form-card">
+                <h3>Create New Order</h3>
+                <label>Customer
+                    <select name="customer_id" required>
+                        {% for c in data.customers %}
+                        <option value="{{ c.ID }}">{{ c.Name }} ({{ c.Phone }})</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Cafeteria
+                    <select name="cafeteria" required>
+                        <option value="kafe_1">Kafe 1</option>
+                        <option value="kafe_2">Kafe 2</option>
+                    </select>
+                </label>
+                <label>Product
+                    <select name="prod_id" required>
+                        {% for p in data.products %}
+                        <option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Quantity
+                    <input type="number" step="0.01" min="0.01" name="quantity" required>
+                </label>
+                <button type="submit">Create Order + Plan Production</button>
+            </form>
+
+            <div class="form-card">
+                <h3>Recent Orders</h3>
+                <table class="data-table">
+                    <thead><tr><th>ID</th><th>Cafe</th><th>Content</th><th>Warning</th></tr></thead>
+                    <tbody>
+                        {% for o in data.orders %}
+                        <tr>
+                            <td>{{ o.ID }}</td>
+                            <td>{{ o.Cafeteria }}</td>
+                            <td>{{ o.Content }}</td>
+                            <td class="warning-cell">{{ o.Warning or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- KITCHEN TAB -->
+    <section class="tab-content" id="kitchen">
+        <div class="tab-inner">
+            <h2>Kitchen - Production Management</h2>
+            
+            <form method="post" action="/stock/prep" class="form-card">
+                <h3>Add Prep Batch</h3>
+                <label>Prep
+                    <select name="prep_id" required>
+                        {% for p in data.preps %}
+                        <option value="{{ p.Prep_id }}">{{ p.Prep_name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Quantity
+                    <input type="number" step="0.01" min="0.01" name="quantity" required>
+                </label>
+                <button type="submit">Add Prep Stock</button>
+            </form>
+
+            <div class="form-card">
+                <h3>Production Activities</h3>
+                <table class="data-table">
+                    <thead><tr><th>ID</th><th>Type</th><th>Item</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for a in data.activities %}
+                        <tr>
+                            <td>{{ a.ID }}</td>
+                            <td><span class="badge">{{ a.Product_type }}</span></td>
+                            <td>{{ a.item_name or 'Unknown' }}</td>
+                            <td>{{ '%.2f'|format(a.Quantity) }} {{ a.Unit }}</td>
+                            <td><span class="status-badge {{ 'done' if a.Accomplished else 'pending' }}">{{ 'Done' if a.Accomplished else 'Pending' }}</span></td>
+                            <td>
+                                {% if not a.Accomplished %}
+                                <form method="post" action="/activity/{{ a.ID }}/complete" style="display:inline;">
+                                    <button type="submit" class="action-btn">Complete</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- CAFETERIA TAB -->
+    <section class="tab-content" id="cafeteria">
+        <div class="tab-inner">
+            <h2>Cafeteria - Stock & Purchasing</h2>
+            
+            <form method="post" action="/stock/product" class="form-card">
+                <h3>Send Product to Cafeteria</h3>
+                <label>Product
+                    <select name="prod_id" required>
+                        {% for p in data.products %}
+                        <option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Quantity
+                    <input type="number" step="0.01" min="0.01" name="quantity" required>
+                </label>
+                <label>Destination
+                    <select name="cafeteria">
+                        <option value="kafe_1">Kafe 1 (Main)</option>
+                        <option value="kafe_2">Kafe 2 (Remote)</option>
+                    </select>
+                </label>
+                <button type="submit">Send to Cafeteria</button>
+            </form>
+
+            <div class="form-card">
+                <h3>Purchase Orders</h3>
+                <button class="primary-btn" onclick="openPurchaseModal()">+ New Purchase Order</button>
+                <table class="data-table">
+                    <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for p in data.purchases %}
+                        <tr>
+                            <td>#{{ p.ID }}</td>
+                            <td>{{ p.Date }}</td>
+                            <td>{{ p.Contents }}</td>
+                            <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
+                            <td>
+                                {% if not p.Accomplished %}
+                                <button class="action-btn" onclick="editPurchase({{ p.ID }}, '{{ p.Contents }}')">Edit</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="stock-section">
+                <h3>Stock Levels</h3>
+                <div class="stock-grid">
+                    <div class="stock-card">
+                        <h4>Raw Materials</h4>
+                        <table class="stock-table">
+                            <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Min</th></tr></thead>
+                            <tbody>
+                                {% for r in raw_stock %}
+                                <tr>
+                                    <td>{{ r.name }}</td>
+                                    <td>{{ '%.2f'|format(r.quantity) }}</td>
+                                    <td>{{ r.unit }}</td>
+                                    <td>{{ r.min_quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="stock-card">
+                        <h4>Preps</h4>
+                        <table class="stock-table">
+                            <thead><tr><th>Item</th><th>Qty</th><th>Unit</th></tr></thead>
+                            <tbody>
+                                {% for p in prep_stock %}
+                                <tr>
+                                    <td>{{ p.name }}</td>
+                                    <td>{{ '%.2f'|format(p.quantity) }}</td>
+                                    <td>{{ p.unit }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="stock-card">
+                        <h4>Ready Products</h4>
+                        <table class="stock-table">
+                            <thead><tr><th>Item</th><th>Qty</th><th>Unit</th></tr></thead>
+                            <tbody>
+                                {% for p in prod_stock %}
+                                <tr>
+                                    <td>{{ p.name }}</td>
+                                    <td>{{ '%.2f'|format(p.quantity) }}</td>
+                                    <td>{{ p.unit }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- PURCHASE MODAL -->
+<div id="purchaseModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closePurchaseModal()">&times;</span>
+        <h2>Purchase Order</h2>
+        <form id="purchaseForm" method="post" action="/purchase">
+            <div id="purchaseItems">
+                <div class="purchase-item">
+                    <label>Raw Material
+                        <select name="raw_id" required>
+                            <option value="">-- Select --</option>
+                            {% for r in data.raw_products %}
+                            <option value="{{ r.Raw_id }}">{{ r.Raw_name_nor }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>Quantity
+                        <input type="number" step="0.01" min="0.01" name="quantity" value="0">
+                    </label>
+                    <button type="button" onclick="removePurchaseItem(this)">Remove</button>
+                </div>
+            </div>
+            <button type="button" onclick="addPurchaseItem()" class="secondary-btn">+ Add Item</button>
+            <button type="submit" class="primary-btn">Create Purchase Order</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+    const tabs = document.querySelectorAll('.tab-content');
+    const btns = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    btns.forEach(btn => btn.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    localStorage.setItem('activeTab', tabName);
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// Remember last tab
+const lastTab = localStorage.getItem('activeTab') || 'admin';
+switchTab(lastTab);
+
+function openPurchaseModal() {
+    document.getElementById('purchaseModal').style.display = 'block';
+}
+
+function closePurchaseModal() {
+    document.getElementById('purchaseModal').style.display = 'none';
+    document.getElementById('purchaseForm').action = '/purchase';
+}
+
+function addPurchaseItem() {
+    const container = document.getElementById('purchaseItems');
+    const newItem = document.createElement('div');
+    newItem.className = 'purchase-item';
+    newItem.innerHTML = `
+        <label>Raw Material
+            <select name="raw_id">
+                <option value="">-- Select --</option>
+                {% for r in data.raw_products %}<option value="{{ r.Raw_id }}">{{ r.Raw_name_nor }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>Quantity
+            <input type="number" step="0.01" min="0.01" name="quantity" value="0">
+        </label>
+        <button type="button" onclick="removePurchaseItem(this)">Remove</button>
+    `;
+    container.appendChild(newItem);
+}
+
+function removePurchaseItem(btn) {
+    btn.parentElement.remove();
+}
+
+function editPurchase(purchaseId, contents) {
+    const items = JSON.parse(contents);
+    document.getElementById('purchaseForm').action = `/purchase/${purchaseId}/update`;
+    const container = document.getElementById('purchaseItems');
+    container.innerHTML = '';
+    for (const [rawId, qty] of Object.entries(items)) {
+        const item = document.createElement('div');
+        item.className = 'purchase-item';
+        item.innerHTML = `
+            <label>Raw Material
+                <select name="raw_id">
+                    <option value="">-- Select --</option>
+                    {% for r in data.raw_products %}<option value="{{ r.Raw_id }}" {% if r.Raw_id|string == rawId %}selected{% endif %}>{{ r.Raw_name_nor }}</option>{% endfor %}
                 </select>
             </label>
             <label>Quantity
-                <input type="number" step="0.01" min="0.01" name="quantity" required>
+                <input type="number" step="0.01" min="0.01" name="quantity" value="${qty}">
             </label>
-            <button type="submit">Create Order + Plan Production</button>
-        </form>
+            <button type="button" onclick="removePurchaseItem(this)">Remove</button>
+        `;
+        container.appendChild(item);
+    }
+    openPurchaseModal();
+}
 
-        <h3>Recent Orders</h3>
-        <table>
-            <thead><tr><th>ID</th><th>Cafe</th><th>Content</th><th>Warning</th></tr></thead>
-            <tbody>
-                {% for o in data.orders %}
-                <tr>
-                    <td>{{ o.ID }}</td>
-                    <td>{{ o.Cafeteria }}</td>
-                    <td>{{ o.Content }}</td>
-                    <td>{{ o.Warning or '' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-
-    <article class="card">
-        <h2>Kitchen</h2>
-        <form method="post" action="/stock/prep" class="stack">
-            <label>Add Prep Batch
-                <select name="prep_id" required>
-                    {% for p in data.preps %}
-                    <option value="{{ p.Prep_id }}">{{ p.Prep_name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Quantity
-                <input type="number" step="0.01" min="0.01" name="quantity" required>
-            </label>
-            <button type="submit">Add Prep Stock</button>
-        </form>
-
-        <h3>Planned Activities</h3>
-        <table>
-            <thead><tr><th>ID</th><th>Type</th><th>Product</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>
-                {% for a in data.activities %}
-                <tr>
-                    <td>{{ a.ID }}</td>
-                    <td>{{ a.Product_type }}</td>
-                    <td>{{ a.Product_id }}</td>
-                    <td>{{ a.Quantity }} {{ a.Unit }}</td>
-                    <td>{{ 'Done' if a.Accomplished else 'Planned' }}</td>
-                    <td>
-                        {% if not a.Accomplished %}
-                        <form method="post" action="/activity/{{ a.ID }}/complete">
-                            <button type="submit">Complete</button>
-                        </form>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-
-    <article class="card">
-        <h2>Cafeteria</h2>
-        <form method="post" action="/stock/product" class="stack">
-            <label>Add Ready Product
-                <select name="prod_id" required>
-                    {% for p in data.products %}
-                    <option value="{{ p.Prod_id }}">{{ p.Prod_name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Quantity
-                <input type="number" step="0.01" min="0.01" name="quantity" required>
-            </label>
-            <label>Destination
-                <select name="cafeteria">
-                    <option value="kafe_1">Kafe 1</option>
-                    <option value="kafe_2">Kafe 2</option>
-                </select>
-            </label>
-            <button type="submit">Send to Cafeteria</button>
-        </form>
-
-        <h3>Purchase Plan</h3>
-        <table>
-            <thead><tr><th>ID</th><th>Date</th><th>Contents</th><th>Done</th></tr></thead>
-            <tbody>
-                {% for p in data.purchases %}
-                <tr>
-                    <td>{{ p.ID }}</td>
-                    <td>{{ p.Date }}</td>
-                    <td>{{ p.Contents }}</td>
-                    <td>{{ 'Yes' if p.Accomplished else 'No' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-</section>
-
-<section class="grid stock">
-    <article class="card">
-        <h2>Raw Stock</h2>
-        <table>
-            <thead><tr><th>Name</th><th>Qty</th><th>Unit</th><th>Min</th></tr></thead>
-            <tbody>
-                {% for r in raw_stock %}
-                <tr><td>{{ r.name }}</td><td>{{ '%.2f'|format(r.quantity) }}</td><td>{{ r.unit }}</td><td>{{ r.min_quantity }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-
-    <article class="card">
-        <h2>Prep Stock</h2>
-        <table>
-            <thead><tr><th>Name</th><th>Qty</th><th>Unit</th></tr></thead>
-            <tbody>
-                {% for p in prep_stock %}
-                <tr><td>{{ p.name }}</td><td>{{ '%.2f'|format(p.quantity) }}</td><td>{{ p.unit }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-
-    <article class="card">
-        <h2>Ready Products</h2>
-        <table>
-            <thead><tr><th>Name</th><th>Qty</th><th>Unit</th></tr></thead>
-            <tbody>
-                {% for p in prod_stock %}
-                <tr><td>{{ p.name }}</td><td>{{ '%.2f'|format(p.quantity) }}</td><td>{{ p.unit }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-</section>
+window.onclick = function(event) {
+    const modal = document.getElementById('purchaseModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+        document.getElementById('purchaseForm').action = '/purchase';
+    }
+}
+</script>
 {% endblock %}

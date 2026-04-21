@@ -1,4 +1,4 @@
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, url_for, jsonify
 
 from db import init_db
 from services import (
@@ -10,6 +10,9 @@ from services import (
     get_stock_snapshot,
     add_prep_stock,
     add_prod_stock,
+    create_purchase_order,
+    get_purchase_by_id,
+    update_purchase_order,
 )
 
 app = Flask(__name__)
@@ -90,7 +93,38 @@ def stock_product():
         return redirect(url_for("index", error=str(exc)))
 
 
+@app.post("/purchase")
+def create_purchase():
+    try:
+        items = request.form.getlist("raw_id")
+        quantities = request.form.getlist("quantity")
+        contents = {}
+        for raw_id, qty in zip(items, quantities):
+            if raw_id and qty:
+                contents[raw_id] = float(qty)
+        purchase_id = create_purchase_order(contents, worker_id=1)
+        return redirect(url_for("index", message=f"Purchase order #{purchase_id} created"))
+    except Exception as exc:
+        return redirect(url_for("index", error=str(exc)))
+
+
+@app.post("/purchase/<int:purchase_id>/update")
+def update_purchase(purchase_id):
+    try:
+        items = request.form.getlist("raw_id")
+        quantities = request.form.getlist("quantity")
+        contents = {}
+        for raw_id, qty in zip(items, quantities):
+            if raw_id and qty:
+                contents[raw_id] = float(qty)
+        update_purchase_order(purchase_id, contents)
+        return redirect(url_for("index", message=f"Purchase order #{purchase_id} updated"))
+    except Exception as exc:
+        return redirect(url_for("index", error=str(exc)))
+
+
 if __name__ == "__main__":
     init_db()
     seed_defaults()
     app.run(host="0.0.0.0", port=8000, debug=True)
+

@@ -391,10 +391,30 @@ def list_dashboard_data():
     products = fetch_all("SELECT * FROM Products ORDER BY Prod_name")
     preps = fetch_all("SELECT * FROM Preps ORDER BY Prep_name")
     orders = fetch_all("SELECT * FROM Orders ORDER BY ID DESC LIMIT 20")
-    activities = fetch_all("SELECT * FROM Activity ORDER BY Accomplished ASC, ID DESC LIMIT 50")
-    purchases = fetch_all("SELECT * FROM Purchase ORDER BY Accomplished ASC, ID DESC LIMIT 20")
+    activities = fetch_all("""
+        SELECT a.*, 
+               COALESCE(pr.Prod_name, p.Prep_name) as item_name
+        FROM Activity a
+        LEFT JOIN Products pr ON a.Product_type = 'prod' AND a.Product_id = pr.Prod_id
+        LEFT JOIN Preps p ON a.Product_type = 'prep' AND a.Product_id = p.Prep_id
+        ORDER BY a.Accomplished ASC, a.ID DESC LIMIT 50
+    """)
+    purchases = fetch_all("""
+        SELECT p.*, COALESCE(w.Name, 'System') as made_by_name,
+               GROUP_CONCAT(rp.Raw_name_nor || ' (' || json_extract(p.Contents, '$[' || json_array_length(p.Contents) - 1 || ']') || ')', ', ') as raw_list
+        FROM Purchase p
+        LEFT JOIN Workers w ON p.Made_by = w.ID
+        LEFT JOIN json_each(p.Contents) je ON true
+        LEFT JOIN Raw_products rp ON rp.Raw_id = json_extract(p.Contents, '$.' || je.key)
+        GROUP BY p.ID
+        ORDER BY p.Accomplished ASC, p.ID DESC LIMIT 20
+    """)
     customers = fetch_all("SELECT * FROM Customers ORDER BY Name")
     workers = fetch_all("SELECT * FROM Workers ORDER BY Name")
+    
+    # Extract raw products for purchase modal
+    raw_products = fetch_all("SELECT Raw_id, Raw_name_nor FROM Raw_products ORDER BY Raw_name_nor")
+    
     return {
         "products": products,
         "preps": preps,
@@ -403,6 +423,7 @@ def list_dashboard_data():
         "purchases": purchases,
         "customers": customers,
         "workers": workers,
+        "raw_products": raw_products,
     }
 
 
@@ -412,3 +433,32 @@ def seed_defaults():
         execute("INSERT INTO Workers (Name) VALUES ('Kitchen Team')")
     if not fetch_one("SELECT ID FROM Customers LIMIT 1"):
         execute("INSERT INTO Customers (Phone, Name, Email) VALUES ('00000000', 'Walk-in', 'local@shop.no')")
+
+
+def create_purchase_order(order_contents, worker_id=None):
+    """Create a manual purchase order. order_contents is dict of {raw_id: quantity}."""
+    if not order_contents:
+        raise ValueError("Purchase order must contain at least one item")
+    return execute(
+        "INSERT INTO Purchase (Date, Contents, Made_by, Control, Accomplished) VALUES (?, ?, ?, 0, 0)",
+        (_today(), json.dumps(order_contents), worker_id),
+    )
+
+
+def get_purchase_by_id(purchase_id):
+    """Fetch a single purchase order with details."""
+    return fetch_one("SELECT * FROM Purchase WHERE ID = ?", (purchase_id,))
+
+
+def update_purchase_order(purchase_id, new_contents):
+    """Update purchase order contents (as dict of raw_id: qty). Only if not accomplished."""
+    purchase = get_purchase_by_id(purchase_id)
+    if not purchase:
+        raise ValueError("Purchase not found")
+    if purchase["Accomplished"]:
+        raise ValueError("Cannot modify accomplished purchase orders")
+    execute(
+        "UPDATE Purchase SET Contents = ? WHERE ID = ?",
+        (json.dumps(new_contents), purchase_id),
+    )
+
