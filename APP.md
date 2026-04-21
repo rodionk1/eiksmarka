@@ -1,27 +1,46 @@
 # Web App for Kitchen + 2 Cafeterias
 
-## App Tabs / Roles
+## App Structure
 
-The single web page has 3 sections:
+The web app uses a **full-window tabbed interface** with three role-based sections:
 
-1. Admin:
-- Initialize database and load text files from `products/` and `preps/`
-- Register orders for cafeteria 1 or cafeteria 2
-- View order warnings
+1. **Admin Tab**
+   - Register customer orders for cafeteria 1 or cafeteria 2
+   - View recent orders and warnings  
+   - Production and purchase orders auto-created based on availability checks
 
-2. Kitchen:
-- Add prep stock batches
-- View planned production activities
-- Complete an activity (this subtracts used preps/raw and adds finished stock)
+2. **Kitchen Tab**
+   - Add prep stock batches
+   - View production activities with product/prep names (not IDs)
+   - Complete production activities (sequenced: preps before products)
 
-3. Cafeteria:
-- Send finished products to kafe_1 (main storage) or kafe_2
-- View auto-created purchase planning entries for missing raw products
+3. **Cafeteria Tab**
+   - Send finished products to kafe_1 (main storage) or kafe_2 (remote)
+   - **Purchase order management:**
+     - Open a modal to create new purchase orders
+     - Add multiple raw materials with adjustable quantities
+     - Edit existing purchase orders (if not yet accomplished)
+   - View stock levels (raw materials, preps, ready products)
+
+Tab state is stored in browser localStorage, so the last-used tab is remembered on reload.
+
+## Purchase Order Modal
+
+When raw materials are missing from an order:
+- A Purchase record is auto-created with missing items
+- The **Cafeteria** tab shows all purchase orders in a table
+- Click **+ New Purchase Order** to open the modal and manually create orders
+- Inside modal:
+  - Add multiple items by selecting raw material + quantity
+  - Use **+ Add Item** to add more rows
+  - Use **Remove** to delete rows
+  - Submit to create the order
+- Click an existing order's **Edit** button to modify quantities (if not accomplished)
 
 ## Interaction Between Tables
 
 1. Order registration (`Orders`):
-- User creates order with product and quantity.
+- User creates order via Admin tab with product and quantity.
 - Engine reads recipe from `Products` and calculates ingredient demand.
 
 2. Availability check:
@@ -39,6 +58,7 @@ The single web page has 3 sections:
 - For every ordered product, a production activity is created (`Product_type='prod'`).
 - If required prep is missing, prep production activities are added automatically (`Product_type='prep'`).
 - Nested prep dependencies are expanded, so preps needed by other preps are also included.
+- All activities for an order share the same Order_id for sequencing.
 
 5. Production completion:
 - When activity is completed:
@@ -47,6 +67,11 @@ The single web page has 3 sections:
   - Produced quantity is added to `Storage_prod`
   - `Activity.Accomplished` is set to 1
 - Sequence enforcement: a `prod` activity cannot be completed while any `prep` activity for the same order is still not accomplished.
+
+6. Manual purchase orders:
+- Use the purchase modal in the Cafeteria tab to create/edit purchase orders manually.
+- Adjustable quantities allow flexibility in ordering.
+- Multiple raw items can be added in a single purchase order.
 
 ## Recipe/Text File Format
 
@@ -71,17 +96,25 @@ Other lines:
 
 1. Install dependencies:
 
-`pip install -r requirements.txt`
+```bash
+pip install -r requirements.txt
+```
 
 2. Run app:
 
-`python app.py`
+```bash
+python app.py
+```
 
-3. Open:
+3. Open in browser:
 
-`http://localhost:8000`
+```
+http://localhost:8000
+```
 
-4. Click **Initialize DB + Load Files** on first run.
+4. On first run, click **Initialize DB + Load Files** button at the top to set up database and import recipes from `products/` and `preps/` folders.
+
+5. Use the **Admin**, **Kitchen**, and **Cafeteria** tabs to navigate between roles. Tab state is saved in browser localStorage.
 
 ## Free Hosting
 
