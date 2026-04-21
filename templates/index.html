@@ -9,6 +9,7 @@
 <div class="tabs-container">
     <div class="tabs-header">
         <button class="tab-btn active" data-tab="admin">Admin</button>
+        <button class="tab-btn" data-tab="admin-purchase">Admin Purchase</button>
         <button class="tab-btn" data-tab="kitchen">Kitchen</button>
         <button class="tab-btn" data-tab="cafeteria">Cafeteria</button>
     </div>
@@ -18,7 +19,7 @@
         <div class="tab-inner">
             <h2>Admin - Order Management</h2>
             <div class="form-card">
-                <h3>Orders</h3>
+                <h3>Admin Orders</h3>
                 <table class="data-table">
                     <thead><tr><th>ID</th><th>Delivery Place</th><th>Customer</th><th>Delivery</th><th>Status</th><th>Product</th><th>Qty</th><th>Warning</th><th>Action</th></tr></thead>
                     <tbody>
@@ -114,8 +115,15 @@
                 </div>
             </div>
 
+        </div>
+    </section>
+
+    <!-- ADMIN PURCHASE TAB -->
+    <section class="tab-content" id="admin-purchase">
+        <div class="tab-inner">
+            <h2>Admin Purchase - Raw Quantities</h2>
             <div class="form-card">
-                <h3>Raw Material Purchase Orders</h3>
+                <h3>Admin Purchase</h3>
                 <button class="primary-btn" onclick="openAdminRawPurchaseModal()">+ New Purchase Order</button>
                 <table class="data-table">
                     <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Made By</th><th>Status</th><th>Action</th></tr></thead>
@@ -132,10 +140,17 @@
                                 </table>
                             </td>
                             <td>{{ p.made_by_name }}</td>
-                            <td><span class="status-badge {{ 'done' if p.Accomplished else 'pending' }}">{{ 'Done' if p.Accomplished else 'Pending' }}</span></td>
+                            <td><span class="status-badge {{ p.status_class }}">{{ p.status_label }}</span></td>
                             <td>
-                                {% if not p.Accomplished %}
+                                {% if not p.Control and not p.Accomplished %}
                                 <button class="action-btn edit-raw-purchase" data-id="{{ p.ID }}" data-items='{{ p.items_resolved | tojson }}'>Edit</button>
+                                <form method="post" action="/purchase/{{ p.ID }}/start" style="display:inline;">
+                                    <button type="submit" class="action-btn">Start</button>
+                                </form>
+                                {% elif p.Control and not p.Accomplished %}
+                                <form method="post" action="/purchase/{{ p.ID }}/done" style="display:inline;">
+                                    <button type="submit" class="action-btn">Done</button>
+                                </form>
                                 {% endif %}
                             </td>
                         </tr>
@@ -143,13 +158,68 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- RAW WAREHOUSE STOCK -->
+            <div class="form-card">
+                <h3>Warehouse – Raw Stock</h3>
+                {% set low_items = data.raw_warehouse | selectattr('below_min') | list %}
+                {% if low_items %}
+                <p class="suggest-prep-note" style="color:#7a1818;">
+                    {{ low_items | length }} item(s) are below minimum quantity. Consider adding them to a purchase order.
+                </p>
+                {% endif %}
+                <div class="warehouse-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Name</th><th>Qty</th><th>Min</th><th>Unit</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for r in data.raw_warehouse %}
+                            <tr {% if r.below_min %}class="warehouse-low"{% endif %}>
+                                <td>
+                                    {{ r.name }}
+                                    {% if r.below_min %}<span class="low-badge">Low</span>{% endif %}
+                                </td>
+                                <td>{{ '%.2f'|format(r.quantity) }}</td>
+                                <td>{{ '%.2f'|format(r.min_quantity) }}</td>
+                                <td>{{ r.unit }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" style="text-align:center;color:#888;">No raw products in warehouse</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </section>
-
-    <!-- KITCHEN TAB -->
     <section class="tab-content" id="kitchen">
         <div class="tab-inner">
             <h2>Kitchen - Production Management</h2>
+
+            {% if suggested_preps %}
+            <div class="form-card suggest-prep-card">
+                <h3>Missing Preps for Activity #{{ suggested_activity_id }}</h3>
+                <p class="suggest-prep-note">These quantities are prefilled to complete the selected order activity.</p>
+                <div class="suggest-prep-list">
+                    {% for sp in suggested_preps %}
+                    <form method="post" action="/stock/prep" class="suggest-prep-form">
+                        <input type="hidden" name="prep_id" value="{{ sp.prep_id }}">
+                        <label>Prep
+                            <input type="text" value="{{ sp.prep_name }}" readonly>
+                        </label>
+                        <label>Quantity
+                            <div class="qty-with-unit">
+                                <input type="number" step="0.01" min="0.01" name="quantity" value="{{ '%.2f'|format(sp.missing_qty) }}" required>
+                                <span>{{ sp.unit }}</span>
+                            </div>
+                        </label>
+                        <button type="submit">Make Prep</button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <div class="form-card">
                 <h3>Production Activities</h3>
@@ -435,7 +505,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // Remember last tab
-const lastTab = localStorage.getItem('activeTab') || 'admin';
+const params = new URLSearchParams(window.location.search);
+const tabFromQuery = params.get('active_tab');
+const lastTab = tabFromQuery || localStorage.getItem('activeTab') || 'admin';
 switchTab(lastTab);
 
 const adminProductSelect = document.getElementById('admin-product-select');

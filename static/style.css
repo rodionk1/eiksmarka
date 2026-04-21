@@ -249,6 +249,11 @@ td {
     color: #1d4ed8;
 }
 
+.status-badge.started {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
 .status-badge.delivered {
     background: #dcfce7;
     color: #166534;
@@ -317,6 +322,33 @@ td {
     grid-template-columns: 1.2fr 1fr 1.2fr auto;
     gap: 1rem;
     align-items: end;
+}
+
+.suggest-prep-card {
+    border-color: #f3d28b;
+    background: #fff9ed;
+}
+
+.suggest-prep-note {
+    margin-top: -0.6rem;
+    margin-bottom: 1rem;
+    color: #7d5a1f;
+}
+
+.suggest-prep-list {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.suggest-prep-form {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+    padding: 0.8rem;
+    border: 1px solid #f0e2bc;
+    border-radius: 8px;
+    background: #fff;
 }
 
 .qty-with-unit {
@@ -479,6 +511,34 @@ td {
     margin-bottom: 0;
 }
 
+.warehouse-scroll {
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.warehouse-scroll .data-table {
+    margin-top: 0;
+}
+
+.warehouse-low td {
+    background: #fff5f5;
+    color: #7a1818;
+}
+
+.warehouse-low .low-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    background: #f9d0d0;
+    color: #7a1818;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 @media (max-width: 960px) {
     .tab-inner {
         padding: 1rem;
@@ -502,7 +562,8 @@ td {
 
     .order-form-grid-top,
     .order-form-grid-bottom,
-    .inline-customer-form {
+    .inline-customer-form,
+    .suggest-prep-form {
         grid-template-columns: 1fr;
     }
 

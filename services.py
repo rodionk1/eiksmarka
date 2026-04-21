@@ -188,6 +188,14 @@ def _aggregate_raw_stock():
     return {str(r["Raw_id"]): float(r["Quantity"]) for r in rows}
 
 
+def _purchase_status(control, accomplished):
+    if accomplished:
+        return "done", "Done"
+    if control:
+        return "started", "Started"
+    return "pending", "Pending"
+
+
 def _required_ingredients_for_product(prod_id, quantity):
     row = fetch_one("SELECT Default_quantity, Ingredients_prep, Ingredients_raw FROM Products WHERE Prod_id = ?", (prod_id,))
     if not row:
@@ -408,6 +416,36 @@ def complete_activity(activity_id, made_by=None):
     _refresh_order_status(activity["Order_id"])
 
 
+def get_missing_preps_for_activity(activity_id):
+    activity = fetch_one("SELECT * FROM Activity WHERE ID = ?", (activity_id,))
+    if not activity or activity["Accomplished"] or activity["Product_type"] != "prod":
+        return []
+
+    quantity = float(activity["Quantity"])
+    prep_req, _ = _required_ingredients_for_product(activity["Product_id"], quantity)
+    prep_stock = _aggregate_prep_stock()
+
+    missing = []
+    for prep_id, needed in prep_req.items():
+        available = prep_stock.get(str(prep_id), 0)
+        missing_qty = float(needed) - float(available)
+        if missing_qty <= 0:
+            continue
+        prep = fetch_one("SELECT Prep_name, Unit FROM Preps WHERE Prep_id = ?", (int(prep_id),))
+        if prep:
+            missing.append(
+                {
+                    "prep_id": int(prep_id),
+                    "prep_name": prep["Prep_name"],
+                    "unit": prep["Unit"],
+                    "missing_qty": round(missing_qty, 2),
+                }
+            )
+
+    missing.sort(key=lambda x: x["prep_name"])
+    return missing
+
+
 def mark_order_delivered(order_id):
     order = fetch_one("SELECT ID, Status FROM Orders WHERE ID = ?", (order_id,))
     if not order:
@@ -518,6 +556,7 @@ def list_dashboard_data():
                 {"id": k, "name": id_to_name.get(str(k), f"#{k}"), "qty": v, "unit": id_to_unit.get(str(k), "")}
                 for k, v in contents.items()
             ]
+            row["status_class"], row["status_label"] = _purchase_status(row.get("Control"), row.get("Accomplished"))
             result.append(row)
         return result
 
@@ -543,6 +582,28 @@ def list_dashboard_data():
     customers = fetch_all("SELECT * FROM Customers ORDER BY Name")
     workers = fetch_all("SELECT * FROM Workers ORDER BY Name")
 
+    raw_warehouse = fetch_all("""
+        SELECT r.Raw_id, r.Raw_name_nor,
+               COALESCE(s.Quantity, 0) as Quantity,
+               COALESCE(s.Min_quantity, 0) as Min_quantity,
+               COALESCE(s.Unit, '') as Unit
+        FROM Raw_products r
+        LEFT JOIN Storage_raw s ON r.Raw_id = s.Raw_id
+        ORDER BY r.Raw_name_nor
+    """)
+
+    raw_warehouse = [
+        {
+            "Raw_id": r["Raw_id"],
+            "name": r["Raw_name_nor"],
+            "quantity": float(r["Quantity"]),
+            "min_quantity": float(r["Min_quantity"]),
+            "unit": r["Unit"],
+            "below_min": float(r["Quantity"]) < float(r["Min_quantity"]),
+        }
+        for r in raw_warehouse
+    ]
+
     return {
         "products": products,
         "preps": preps,
@@ -555,6 +616,7 @@ def list_dashboard_data():
         "today": _today(),
         "workers": workers,
         "raw_products": raw_products,
+        "raw_warehouse": raw_warehouse,
     }
 
 
@@ -595,4 +657,52 @@ def update_purchase_order(purchase_id, new_contents):
         "UPDATE Purchase SET Contents = ? WHERE ID = ?",
         (json.dumps(new_contents), purchase_id),
     )
+
+
+def start_purchase_order(purchase_id):
+    purchase = get_purchase_by_id(purchase_id)
+    if not purchase:
+        raise ValueError("Purchase not found")
+    if purchase["Accomplished"]:
+        raise ValueError("Purchase order is already done")
+    if purchase["Control"]:
+        return
+    execute("UPDATE Purchase SET Control = 1 WHERE ID = ?", (purchase_id,))
+
+
+def complete_raw_purchase_order(purchase_id):
+    purchase = get_purchase_by_id(purchase_id)
+    if not purchase:
+        raise ValueError("Purchase not found")
+    if purchase["Accomplished"]:
+        raise ValueError("Purchase order is already done")
+    if not purchase["Control"]:
+        raise ValueError("Purchase order must be started before marking done")
+    if purchase["Purchase_type"] != "raw":
+        raise ValueError("Only raw purchase orders can update raw stock")
+
+    try:
+        contents = json.loads(purchase["Contents"] or "{}")
+    except (json.JSONDecodeError, TypeError):
+        raise ValueError("Purchase contents are invalid")
+
+    with get_connection() as conn:
+        for raw_id, quantity in contents.items():
+            raw_id_int = int(raw_id)
+            quantity_value = float(quantity)
+            stock_row = conn.execute(
+                "SELECT Unit, Min_quantity, Price_pr_unit FROM Storage_raw WHERE Raw_id = ?",
+                (raw_id_int,),
+            ).fetchone()
+            if stock_row:
+                conn.execute(
+                    "UPDATE Storage_raw SET Quantity = Quantity + ? WHERE Raw_id = ?",
+                    (quantity_value, raw_id_int),
+                )
+                continue
+
+            raise ValueError(f"Raw stock row is not configured for raw item #{raw_id_int}")
+
+        conn.execute("UPDATE Purchase SET Accomplished = 1 WHERE ID = ?", (purchase_id,))
+        conn.commit()
 
