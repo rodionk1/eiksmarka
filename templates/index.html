@@ -17,25 +17,40 @@
     <!-- ADMIN TAB -->
     <section class="tab-content active" id="admin">
         <div class="tab-inner">
-            <h2>Admin - Order Management</h2>
+            <h2>Admin-Orders</h2>
             <div class="form-card">
-                <h3>Admin Orders</h3>
+                <div class="admin-toolbar">
+                    <div class="toolbar-title-group">
+                        <h3>Admin Orders for dates</h3>
+                        <div class="toolbar-dates">
+                            <input type="text" id="admin-orders-range" class="date-range-input" value="{{ data.admin_purchase_view.orders_from }} to {{ data.admin_purchase_view.orders_to }}" placeholder="YYYY-MM-DD to YYYY-MM-DD" readonly>
+                        </div>
+                    </div>
+                    <div class="toolbar-filters">
+                        <label class="tick-filter"><input type="checkbox" class="order-status-filter" value="pending" checked> Pending</label>
+                        <label class="tick-filter"><input type="checkbox" class="order-status-filter" value="production" checked> Production</label>
+                        <label class="tick-filter"><input type="checkbox" class="order-status-filter" value="ready" checked> Ready</label>
+                        <label class="tick-filter"><input type="checkbox" class="order-status-filter" value="delivered"> Delivered</label>
+                        <label class="tick-filter"><input type="checkbox" class="order-place-filter" value="Cafe 1" checked> Cafe 1</label>
+                        <label class="tick-filter"><input type="checkbox" class="order-place-filter" value="Cafe 2" checked> Cafe 2</label>
+                        <button type="button" class="primary-btn" id="open-admin-order-form">+ New order</button>
+                    </div>
+                </div>
                 <table class="data-table">
-                    <thead><tr><th>ID</th><th>Delivery Place</th><th>Customer</th><th>Delivery</th><th>Status</th><th>Product</th><th>Qty</th><th>Warning</th><th>Action</th></tr></thead>
+                    <thead><tr><th>ID</th><th>Place</th><th>Due date</th><th>Product</th><th>Quantity</th><th>Status</th><th>Warnings</th><th>Action</th></tr></thead>
                     <tbody>
                         {% for o in data.orders %}
-                        <tr>
+                        <tr class="admin-order-row" data-due-date="{{ o.Delivery_date }}" data-status="{{ o.Status }}" data-place="{{ o.delivery_place }}">
                             <td>#{{ o.ID }}</td>
                             <td>{{ o.delivery_place }}</td>
-                            <td>{{ o.customer_name }} ({{ o.customer_phone }})</td>
                             <td>{{ o.Delivery_date }} {{ o.Delivery_window|capitalize }}</td>
+                            <td>{{ o.product_name }}</td>
+                            <td>{{ '%.2f'|format(o.product_qty) }} {{ o.product_unit }}</td>
                             <td>
                                 <span class="status-badge {{ o.Status }}">
                                     {{ o.Status|capitalize }}
                                 </span>
                             </td>
-                            <td>{{ o.product_name }}</td>
-                            <td>{{ '%.2f'|format(o.product_qty) }} {{ o.product_unit }}</td>
                             <td class="warning-cell">{{ o.Warning or '' }}</td>
                             <td>
                                 {% if o.Status == 'produced' %}
@@ -50,7 +65,7 @@
                 </table>
             </div>
 
-            <div class="form-card">
+            <div class="form-card" id="admin-order-form-card" hidden>
                 <h3>Create New Order</h3>
                 <form method="post" action="/orders" class="order-create-form">
                     <div class="order-form-grid order-form-grid-top">
@@ -121,15 +136,27 @@
     <!-- ADMIN PURCHASE TAB -->
     <section class="tab-content" id="admin-purchase">
         <div class="tab-inner">
-            <h2>Admin Purchase - Raw Quantities</h2>
+            <h2>Admin-Purchase</h2>
             <div class="form-card">
-                <h3>Admin Purchase</h3>
-                <button class="primary-btn" onclick="openAdminRawPurchaseModal()">+ New Purchase Order</button>
+                <div class="admin-toolbar">
+                    <div class="toolbar-title-group">
+                        <h3>Admin purchase for dates</h3>
+                        <div class="toolbar-dates">
+                            <input type="text" id="purchase-orders-range" class="date-range-input" value="{{ data.admin_purchase_view.planned_from }} to {{ data.admin_purchase_view.planned_to }}" placeholder="YYYY-MM-DD to YYYY-MM-DD" readonly>
+                        </div>
+                    </div>
+                    <div class="toolbar-filters">
+                        <label class="tick-filter"><input type="checkbox" class="purchase-status-filter" value="pending" checked> Planned</label>
+                        <label class="tick-filter"><input type="checkbox" class="purchase-status-filter" value="started" checked> Ordered</label>
+                        <label class="tick-filter"><input type="checkbox" class="purchase-status-filter" value="done" checked> Accomplished</label>
+                        <button class="primary-btn" type="button" onclick="openAdminRawPurchaseModal()">+ New purchase order</button>
+                    </div>
+                </div>
                 <table class="data-table">
-                    <thead><tr><th>ID</th><th>Date</th><th>Items</th><th>Made By</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead><tr><th>ID</th><th>DueDate</th><th>Items</th><th>Supplier</th><th>Requested by</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
                         {% for p in data.raw_purchases %}
-                        <tr>
+                        <tr class="admin-purchase-row" data-date="{{ p.Date }}" data-status="{{ p.status_class }}">
                             <td>#{{ p.ID }}</td>
                             <td>{{ p.Date }}</td>
                             <td>
@@ -139,6 +166,7 @@
                                     {% endfor %}
                                 </table>
                             </td>
+                            <td>-</td>
                             <td>{{ p.made_by_name }}</td>
                             <td><span class="status-badge {{ p.status_class }}">{{ p.status_label }}</span></td>
                             <td>
@@ -157,6 +185,57 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+
+            <div class="form-card">
+                <div class="admin-toolbar">
+                    <div class="toolbar-title-group">
+                        <h3>Pending requests for</h3>
+                        <div class="toolbar-dates toolbar-double-dates">
+                            <input type="text" id="pending-requests-range" class="date-range-input" value="{{ data.admin_purchase_view.pending_from }} to {{ data.admin_purchase_view.pending_to }}" placeholder="YYYY-MM-DD to YYYY-MM-DD" readonly>
+                            <span>and planned purchase</span>
+                            <input type="text" id="planned-purchase-range" class="date-range-input" value="{{ data.admin_purchase_view.planned_from }} to {{ data.admin_purchase_view.planned_to }}" placeholder="YYYY-MM-DD to YYYY-MM-DD" readonly>
+                        </div>
+                    </div>
+                    <div class="toolbar-filters">
+                        <button type="button" class="primary-btn" id="create-order-for-selected">Create order for selected</button>
+                    </div>
+                </div>
+                <div class="warehouse-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Raw name</th><th>Present quantity</th><th>Tomorrow needs</th><th>Missing for tomorrow</th>
+                                <th>Period needs</th><th>In orders for period</th><th>Missing for period</th><th>Include missing in order</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rr in data.admin_purchase_view.request_rows %}
+                            <tr class="request-row {% if rr.missing_period > 0 %}warehouse-low{% endif %}">
+                                <td>{{ rr.name }}</td>
+                                <td>{{ '%.2f'|format(rr.present_quantity) }} {{ rr.unit }}</td>
+                                <td>{{ '%.2f'|format(rr.tomorrow_needs) }} {{ rr.unit }}</td>
+                                <td>{{ '%.2f'|format(rr.missing_tomorrow) }} {{ rr.unit }}</td>
+                                <td>{{ '%.2f'|format(rr.period_needs) }} {{ rr.unit }}</td>
+                                <td>{{ '%.2f'|format(rr.in_orders_period) }} {{ rr.unit }}</td>
+                                <td>{{ '%.2f'|format(rr.missing_period) }} {{ rr.unit }}</td>
+                                <td>
+                                    <label class="tick-filter include-order-toggle">
+                                        <input
+                                            type="checkbox"
+                                            class="include-missing-order"
+                                            data-raw-id="{{ rr.raw_id }}"
+                                            data-qty="{{ '%.2f'|format(rr.missing_period) }}"
+                                            {% if rr.suggest_include %}checked{% endif %}
+                                        >
+                                        Include
+                                    </label>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- RAW WAREHOUSE STOCK -->
@@ -431,6 +510,26 @@
     </section>
 </div>
 
+<!-- DATE RANGE PICKER MODAL -->
+<div id="dateRangeModal" class="modal">
+    <div class="modal-content date-range-modal-content">
+        <span class="close" id="closeDateRangeModal">&times;</span>
+        <h2>Select Date Range</h2>
+        <div class="date-range-picker-grid">
+            <label>From
+                <input type="date" id="rangeStartDate">
+            </label>
+            <label>To
+                <input type="date" id="rangeEndDate">
+            </label>
+        </div>
+        <div class="date-range-actions">
+            <button type="button" class="secondary-btn" id="cancelDateRange">Cancel</button>
+            <button type="button" class="primary-btn" id="applyDateRange">Apply</button>
+        </div>
+    </div>
+</div>
+
 <!-- RAW MATERIAL PURCHASE MODAL (Admin & Kitchen) -->
 <div id="rawPurchaseModal" class="modal">
     <div class="modal-content">
@@ -540,6 +639,149 @@ if (customerFormToggle && customerFormPanel) {
     });
 }
 
+const openAdminOrderForm = document.getElementById('open-admin-order-form');
+const adminOrderFormCard = document.getElementById('admin-order-form-card');
+if (openAdminOrderForm && adminOrderFormCard) {
+    openAdminOrderForm.addEventListener('click', () => {
+        adminOrderFormCard.removeAttribute('hidden');
+        adminOrderFormCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
+function inDateRange(value, from, to) {
+    if (!value) return true;
+    if (from && value < from) return false;
+    if (to && value > to) return false;
+    return true;
+}
+
+function parseDateRange(value) {
+    const text = (value || '').trim();
+    if (!text) return ['', ''];
+    let parts = text.split(' to ');
+    if (parts.length !== 2) {
+        parts = text.split(' - ');
+    }
+    if (parts.length !== 2) {
+        return [text, text];
+    }
+    return [parts[0].trim(), parts[1].trim()];
+}
+
+const dateRangeModal = document.getElementById('dateRangeModal');
+const rangeStartDate = document.getElementById('rangeStartDate');
+const rangeEndDate = document.getElementById('rangeEndDate');
+const applyDateRangeBtn = document.getElementById('applyDateRange');
+const cancelDateRangeBtn = document.getElementById('cancelDateRange');
+const closeDateRangeBtn = document.getElementById('closeDateRangeModal');
+let activeRangeInput = null;
+
+function openDateRangePicker(targetInput) {
+    if (!dateRangeModal || !targetInput) return;
+    activeRangeInput = targetInput;
+    const [from, to] = parseDateRange(targetInput.value || '');
+    rangeStartDate.value = from || '';
+    rangeEndDate.value = to || '';
+    dateRangeModal.style.display = 'block';
+}
+
+function closeDateRangePicker() {
+    if (!dateRangeModal) return;
+    dateRangeModal.style.display = 'none';
+    activeRangeInput = null;
+}
+
+if (applyDateRangeBtn) {
+    applyDateRangeBtn.addEventListener('click', () => {
+        if (!activeRangeInput) return;
+        let start = rangeStartDate.value || '';
+        let end = rangeEndDate.value || '';
+        if (!start && !end) {
+            activeRangeInput.value = '';
+        } else {
+            if (!start) start = end;
+            if (!end) end = start;
+            if (start > end) {
+                const temp = start;
+                start = end;
+                end = temp;
+            }
+            activeRangeInput.value = `${start} to ${end}`;
+        }
+        activeRangeInput.dispatchEvent(new Event('change'));
+        closeDateRangePicker();
+    });
+}
+
+if (cancelDateRangeBtn) {
+    cancelDateRangeBtn.addEventListener('click', closeDateRangePicker);
+}
+
+if (closeDateRangeBtn) {
+    closeDateRangeBtn.addEventListener('click', closeDateRangePicker);
+}
+
+window.addEventListener('click', (event) => {
+    if (event.target === dateRangeModal) {
+        closeDateRangePicker();
+    }
+});
+
+document.querySelectorAll('.date-range-input').forEach(input => {
+    input.addEventListener('click', () => openDateRangePicker(input));
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openDateRangePicker(input);
+        }
+    });
+});
+
+function mapOrderStatus(rawStatus) {
+    if (rawStatus === 'produced') return 'ready';
+    return rawStatus;
+}
+
+function filterAdminOrders() {
+    const [from, to] = parseDateRange(document.getElementById('admin-orders-range')?.value || '');
+    const statusSet = new Set(Array.from(document.querySelectorAll('.order-status-filter:checked')).map(el => el.value));
+    const placeSet = new Set(Array.from(document.querySelectorAll('.order-place-filter:checked')).map(el => el.value));
+    document.querySelectorAll('.admin-order-row').forEach(row => {
+        const due = row.dataset.dueDate || '';
+        const status = mapOrderStatus(row.dataset.status || 'pending');
+        const place = row.dataset.place || '';
+        const visible = inDateRange(due, from, to) && statusSet.has(status) && placeSet.has(place);
+        row.style.display = visible ? '' : 'none';
+    });
+}
+
+function mapPurchaseStatus(statusClass) {
+    if (statusClass === 'started') return 'started';
+    if (statusClass === 'done') return 'done';
+    return 'pending';
+}
+
+function filterAdminPurchases() {
+    const [from, to] = parseDateRange(document.getElementById('purchase-orders-range')?.value || '');
+    const statusSet = new Set(Array.from(document.querySelectorAll('.purchase-status-filter:checked')).map(el => el.value));
+    document.querySelectorAll('.admin-purchase-row').forEach(row => {
+        const due = row.dataset.date || '';
+        const status = mapPurchaseStatus(row.dataset.status || 'pending');
+        const visible = inDateRange(due, from, to) && statusSet.has(status);
+        row.style.display = visible ? '' : 'none';
+    });
+}
+
+document.querySelectorAll('#admin-orders-range, .order-status-filter, .order-place-filter').forEach(el => {
+    el.addEventListener('change', filterAdminOrders);
+});
+document.querySelectorAll('#purchase-orders-range, .purchase-status-filter').forEach(el => {
+    el.addEventListener('change', filterAdminPurchases);
+});
+
+filterAdminOrders();
+filterAdminPurchases();
+
 // Event delegation for edit buttons (avoids inline JSON in onclick)
 document.addEventListener('click', function(e) {
     const rawBtn = e.target.closest('.edit-raw-purchase');
@@ -593,6 +835,48 @@ function addRawPurchaseItem() {
         <button type="button" onclick="this.closest('.purchase-item').remove()">Remove</button>
     `;
     container.appendChild(newItem);
+}
+
+function addPrefilledRawPurchaseItem(rawId, qty) {
+    const container = document.getElementById('rawPurchaseItems');
+    const newItem = document.createElement('div');
+    newItem.className = 'purchase-item';
+    newItem.innerHTML = `
+        <label>Raw Material
+            <select name="raw_id">
+                <option value="">-- Select --</option>
+                {% for r in data.raw_products %}<option value="{{ r.Raw_id }}" data-unit="{{ r.Unit }}">{{ r.Raw_name_nor }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>Quantity
+            <input type="number" step="0.01" min="0.01" name="quantity" value="${qty}">
+        </label>
+        <button type="button" onclick="this.closest('.purchase-item').remove()">Remove</button>
+    `;
+    container.appendChild(newItem);
+    const select = newItem.querySelector('select[name="raw_id"]');
+    if (select) {
+        select.value = String(rawId);
+    }
+}
+
+const createSelectedBtn = document.getElementById('create-order-for-selected');
+if (createSelectedBtn) {
+    createSelectedBtn.addEventListener('click', () => {
+        const selected = Array.from(document.querySelectorAll('.include-missing-order:checked'))
+            .map(el => ({ rawId: el.dataset.rawId, qty: Number(el.dataset.qty || '0') }))
+            .filter(it => it.rawId && it.qty > 0);
+        if (!selected.length) {
+            alert('No missing items selected with quantity above 0.');
+            return;
+        }
+        document.getElementById('rawPurchaseForm').reset();
+        document.getElementById('rawPurchaseForm').action = '/purchase';
+        const container = document.getElementById('rawPurchaseItems');
+        container.innerHTML = '';
+        selected.forEach(item => addPrefilledRawPurchaseItem(item.rawId, item.qty.toFixed(2)));
+        openRawPurchaseModal();
+    });
 }
 
 function editRawPurchase(purchaseId, items) {

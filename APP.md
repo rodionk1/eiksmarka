@@ -4,18 +4,70 @@
 
 The web app uses a **full-window tabbed interface** with three role-based sections:
 
-1. **Admin Tab**
+1. **Admin-Orders Tab**
    - View recent orders for the products and warnings
    - View orders for the stock purchase  
    - Register customer orders for cafeteria 1 or cafeteria 2
    - Production and purchase orders auto-created based on availability checks
 
-2. **Kitchen Tab**
+
+  View of the tab:
+
+  Heading:
+  The table needs a calendar to display orders for a particular date range and a selectors with tick marks to either select or deselect orders Pending/Production/Ready/Delivered, another selector should allow for delivery place.
+  The header is
+
+  Admin Orders for dates <calendar with range selection here>    Pending[x] Production[x] Ready[x] Delivered[ ]  Cafe 1[x] Cafe2[x]  <New order button>
+    
+  ID | Place | Due date | Product | Quantity | Status | Warnings | Action
+  
+  ID is a unique ID of the order
+  Place is where the order must be delivered to
+  Due date is date when the order should be delivered and either morning or noon
+  Product is the product which has to be delivered
+  Quantity is the quantity of the product in the order
+  Status is either Pending/Production/Ready/Delivered
+  Action is "mark delivered"
+
+A <new order> button when pressed should open a window for filling in the order information.
+
+2. **Admin-Purchase Tab**
+  -View purchase order status for the raw products
+  -Create new order for the raw products
+  -Have an overview of raw product quantities in the warehouse
+
+  Upper field is an overview of formed orders.
+  Header 
+  Admin purchase for dates <calendar with range selection here> Planned[X] Ordered[x] Accomplished[X]   <New purchase order button>
+  Default calendar range 2 days in advance
+  Table
+  ID | DueDate | Items | Supplier | Requested by | Status | Action
+
+  Next field is Requests
+  Header
+  Pending requests for <calendar with range selection here> and planned purchase <calendar with range selection here> <Create order for selected>
+  Default range for pending requests is 3 days in advance.
+  Table
+  Raw name | Present quantity | Tomorrow needs | Missing for tomorrow| Period needs | In orders for period | Missing for period | Include missing in order
+  
+  Raw_name is the name of the raw product
+  Present quantity is the quantity available with unit indication
+  Tomorrow needs is a quantity calculated from what is needed for unaccomplished orders  with due date including tomorrow. 
+  Missing for tomorrow is quantity missing to close missing orders for tomorrow, a difference between what is in production activity orders and present quantity with orders to be completed today.
+  Period needs is needs for period selected in the header. 
+  In orders for period is quantity present in the orders for selected period for planned purchase.
+  Missing for period is the quantity missing to close production orders for the period not included in already existing orders.
+  Include missing in order is a tickbox.
+
+  When create order for selected button is pressed, a purchase creation form is opened with ticked items present. 
+
+
+3. **Kitchen Tab**
    - View production activities with product/prep names (not IDs)
    - View prep stocks with button Add prep stock batches
    - Complete production activities (sequenced: preps before products)
 
-3. **Cafeteria Tab**
+4. **Cafeteria Tab**
    - Send finished products to kafe_1 (main storage) or kafe_2 (remote)
    - **Purchase order management:**
      - Open a modal to create new purchase orders

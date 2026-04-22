@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from db import BASE_DIR, execute, fetch_all, fetch_one, get_connection
@@ -214,6 +214,99 @@ def _required_ingredients_for_prep(prep_id, quantity):
     prep_req = {k: v * factor for k, v in json.loads(row["Ingredients_prep"] or "{}").items()}
     raw_req = {k: v * factor for k, v in json.loads(row["Ingredients_raw"] or "{}").items()}
     return prep_req, raw_req
+
+
+def _build_admin_purchase_requests(raw_warehouse):
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    period_end = today + timedelta(days=3)
+    planned_end = today + timedelta(days=2)
+
+    raw_needs_tomorrow = {}
+    raw_needs_period = {}
+
+    activities = fetch_all(
+        """
+        SELECT a.Product_type, a.Product_id, a.Quantity,
+               COALESCE(o.Delivery_date, a.Date) as due_date
+        FROM Activity a
+        LEFT JOIN Orders o ON o.ID = a.Order_id
+        WHERE a.Accomplished = 0
+        """
+    )
+
+    for a in activities:
+        due_date_str = a["due_date"]
+        try:
+            due_date = date.fromisoformat(due_date_str)
+        except (TypeError, ValueError):
+            continue
+
+        if a["Product_type"] == "prod":
+            _, raw_req = _required_ingredients_for_product(int(a["Product_id"]), float(a["Quantity"]))
+        else:
+            _, raw_req = _required_ingredients_for_prep(int(a["Product_id"]), float(a["Quantity"]))
+
+        if today <= due_date <= tomorrow:
+            for raw_id, qty in raw_req.items():
+                raw_needs_tomorrow[raw_id] = raw_needs_tomorrow.get(raw_id, 0.0) + float(qty)
+
+        if today <= due_date <= period_end:
+            for raw_id, qty in raw_req.items():
+                raw_needs_period[raw_id] = raw_needs_period.get(raw_id, 0.0) + float(qty)
+
+    in_orders_period = {}
+    planned_rows = fetch_all(
+        """
+        SELECT Contents
+        FROM Purchase
+        WHERE Purchase_type = 'raw'
+          AND Accomplished = 0
+          AND Date BETWEEN ? AND ?
+        """,
+        (today.isoformat(), planned_end.isoformat()),
+    )
+    for row in planned_rows:
+        try:
+            contents = json.loads(row["Contents"] or "{}")
+        except (json.JSONDecodeError, TypeError):
+            contents = {}
+        for raw_id, qty in contents.items():
+            in_orders_period[str(raw_id)] = in_orders_period.get(str(raw_id), 0.0) + float(qty)
+
+    request_rows = []
+    for raw in raw_warehouse:
+        raw_id = str(raw["Raw_id"])
+        present_qty = float(raw["quantity"])
+        tomorrow_needs = float(raw_needs_tomorrow.get(raw_id, 0.0))
+        missing_tomorrow = max(0.0, tomorrow_needs - present_qty)
+        period_needs = float(raw_needs_period.get(raw_id, 0.0))
+        in_orders = float(in_orders_period.get(raw_id, 0.0))
+        missing_period = max(0.0, period_needs - present_qty - in_orders)
+        request_rows.append(
+            {
+                "raw_id": raw["Raw_id"],
+                "name": raw["name"],
+                "unit": raw["unit"],
+                "present_quantity": present_qty,
+                "tomorrow_needs": tomorrow_needs,
+                "missing_tomorrow": missing_tomorrow,
+                "period_needs": period_needs,
+                "in_orders_period": in_orders,
+                "missing_period": missing_period,
+                "suggest_include": missing_period > 0,
+            }
+        )
+
+    return {
+        "request_rows": request_rows,
+        "orders_from": today.isoformat(),
+        "orders_to": period_end.isoformat(),
+        "pending_from": today.isoformat(),
+        "pending_to": period_end.isoformat(),
+        "planned_from": today.isoformat(),
+        "planned_to": planned_end.isoformat(),
+    }
 
 
 def _plan_missing_preps(total_prep_req, total_raw_req, prep_stock):
@@ -603,6 +696,7 @@ def list_dashboard_data():
         }
         for r in raw_warehouse
     ]
+    admin_purchase_view = _build_admin_purchase_requests(raw_warehouse)
 
     return {
         "products": products,
@@ -617,6 +711,7 @@ def list_dashboard_data():
         "workers": workers,
         "raw_products": raw_products,
         "raw_warehouse": raw_warehouse,
+        "admin_purchase_view": admin_purchase_view,
     }
 
 

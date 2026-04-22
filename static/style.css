@@ -132,6 +132,79 @@ body {
     color: #333;
 }
 
+.admin-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: nowrap;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.toolbar-title-group {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.toolbar-title-group h3 {
+    margin: 0;
+}
+
+.toolbar-dates {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.toolbar-dates input[type="date"],
+.toolbar-dates input[type="text"] {
+    min-width: 260px;
+}
+
+.date-range-input {
+    cursor: pointer;
+    background: #f6fbf4;
+}
+
+.date-range-input:focus {
+    outline: none;
+}
+
+.toolbar-double-dates span {
+    color: #2f3e34;
+    font-size: 0.9rem;
+}
+
+.toolbar-filters {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.tick-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.tick-filter input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.include-order-toggle {
+    justify-content: center;
+}
+
 label {
     display: grid;
     gap: 0.4rem;
@@ -451,6 +524,23 @@ td {
     color: var(--accent);
 }
 
+.date-range-modal-content {
+    max-width: 460px;
+}
+
+.date-range-picker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.date-range-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+}
+
 #purchaseItems {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
@@ -552,6 +642,10 @@ td {
         grid-template-columns: 1fr;
     }
 
+    .date-range-picker-grid {
+        grid-template-columns: 1fr;
+    }
+
     .purchase-item button {
         width: 100%;
     }
@@ -565,6 +659,10 @@ td {
     .inline-customer-form,
     .suggest-prep-form {
         grid-template-columns: 1fr;
+    }
+
+    .admin-toolbar {
+        gap: 0.7rem;
     }
 
     .inline-action-slot {
