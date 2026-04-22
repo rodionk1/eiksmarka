@@ -532,7 +532,20 @@ td {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.8rem;
+    align-items: end;
     margin-bottom: 1rem;
+}
+
+.date-range-picker-grid label {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.date-range-picker-grid input[type="date"] {
+    height: 40px;
+    line-height: 40px;
 }
 
 .date-range-actions {
